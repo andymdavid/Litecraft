@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "questions": [
+    {
+      "key": "crop.portrait",
+      "question": "Portrait (tall) photos — crop them to 4:5, or leave as shot?",
+      "options": ["4:5", "none"],
+      "default": "4:5",
+      "explain": "A light trim of about 17% of the height."
+    },
+    {
+      "key": "crop.landscape",
+      "question": "Landscape (wide) photos — how should they be cropped?",
+      "options": ["4:5", "5:4", "none"],
+      "default": null,
+      "explain": "4:5 makes them tall and keeps only about half the width (a heavy crop). 5:4 stays wide with a light trim. none leaves them as shot."
+    },
+    {
+      "key": "look.default",
+      "question": "Which look should jobs use by default?",
+      "options": null,
+      "free": true,
+      "default": "bright-natural",
+      "explain": "The house style made during setup."
+    },
+    {
+      "key": "export.long_edge_px",
+      "question": "Export size — full size, or a long edge in pixels (e.g. 2048)?",
+      "options": null,
+      "free": true,
+      "default": 0,
+      "explain": "0 means full size."
+    },
+    {
+      "key": "export.format",
+      "question": "Export format — JPEG or TIFF?",
+      "options": ["jpeg", "tiff"],
+      "default": "jpeg",
+      "explain": "JPEG at quality 90, sRGB, suits web and print proofs."
+    },
+    {
+      "key": "export.folder",
+      "question": "Where should finished photos go — the job's export folder, or somewhere else?",
+      "options": null,
+      "free": true,
+      "default": null,
+      "explain": "null means each job's own export folder."
+    },
+    {
+      "key": "review.auto_open",
+      "question": "Bring LightCraft to the front when editing finishes?",
+      "options": [true, false],
+      "default": true,
+      "explain": "So you can start reviewing straight away."
+    }
+  ]
+}
