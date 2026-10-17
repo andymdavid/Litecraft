@@ -30,7 +30,7 @@ LightCraft desktop app  (always running during a job)
 
 **Connect mode only.** Claude Code starts a plugin's MCP servers when the session starts and keeps them running. A headless server (`mcp --library`) would hold the library lock for the whole session, so the desktop app could never open it mid-session. Instead, the skill starts the desktop app with `--control` at the beginning of a job, and the MCP server always connects to it. In connect mode the server starts even when the app isn't running yet and connects on first call, so session start never fails. No lock conflicts; the user can watch edits happen live.
 
-**One library, one album per job.** A single persistent library at `~/LiteCraft/Library`. Each job is an album, so the user browses jobs in LightCraft's sidebar. Presets live with the library.
+**One library, one album per job.** A single persistent library at LightCraft's own default location, `~/Pictures/LightCraft Library`, so opening LightCraft from the Dock shows the same photos (Claude then offers `litecraft-app restart` to reopen it with remote control). Each job is an album, so the user browses jobs in LightCraft's sidebar. Presets live with the library.
 
 **Turn-taking:** Claude and the user don't edit the same photo simultaneously. The skill announces hand-backs ("done with #12 — over to you").
 
@@ -76,10 +76,10 @@ Everything the user owns lives outside the plugin, so plugin updates never touch
 
 ```
 ~/LiteCraft/
+├── (library)              # ~/Pictures/LightCraft Library — LightCraft's default location
 ├── litecraft.env          # paths written by setup: LIGHTCRAFT_CLI, LIGHTCRAFT_APP, LITECRAFT_PORT, LITECRAFT_LIBRARY
 ├── setup.json             # which initialisation steps are done (resumable)
 ├── preferences.json       # the user's answers
-├── Library/               # the LightCraft library (one for all jobs)
 ├── Shoots/<shoot>/        # recommended home for originals; memory cards, Downloads, Desktop,
 │                          # Documents and iCloud Drive are copied here (lc.py source decides)
 ├── presets/               # exported .lcpreset backups of camera/lens/look presets
@@ -214,7 +214,8 @@ Run by Claude Code on the user's machine via the **setup skill** (`/litecraft:se
 |---|---|---|---|
 | 1 | `preflight` | Check macOS, Apple Silicon, `python3` | — |
 | 2 | `install_lightcraft` | Download pinned release (DMG + CLI zip, verify `SHA256SUMS.txt`), install app to `/Applications`, CLI to `~/LiteCraft/bin`; write `litecraft.env`; start the app once to create the library; confirm MCP connect | approve downloads |
-| 3 | `preferences` | Ask the preference questions; save | answers |
+| 3 | `permissions` | Offer to allow LiteCraft's own tools without prompts: `lc.py permissions sync` writes exact allow rules (LightCraft MCP tools, the two scripts at the current plugin path, reads under `~/LiteCraft`) to `~/.claude/settings.json`; the edit skill re-syncs after plugin updates | a yes/no |
+| 3b | `preferences` | Ask the preference questions; save | answers |
 | 4 | `camera_profile` | Ask whether Auto Lighting Optimizer is off (recommend off). Run `lightcraft-cli calibrate --max 300 --out ~/Library/Application\ Support/LightCraft/camera-profiles <folders>` on past M50 CR3s | a folder of ≥ 5 (ideally 30–300) M50 CR3s |
 | 5 | `lens` | Measure vignetting on a few wide-open frames of plain walls; save a lens preset (optics group) | a few f/1.4–f/2 CR3s (optional) |
 | 6 | `look` | Copy before/after pairs into `~/LiteCraft/references/`; for each, match the final by driving LightCraft; derive a common look from the matched settings (start from `defaults/looks/bright-natural.json`); save as the `bright-natural` preset; export `.lcpreset` backup | 5–20 pairs: original CR3 + their edited final |
@@ -318,5 +319,7 @@ Only if LightCraft proves too complex for the user: a read-only localhost web pa
 | 2026-10-17 | Crop ratio + export spec are user preferences | User's call; stored outside the plugin; changeable in chat |
 | 2026-10-17 | All tuning against the user's photos happens in an initialisation run on their Mac | Their files stay local; one setup skill makes it repeatable and obvious |
 | 2026-10-17 | Shoots live in `~/LiteCraft/Shoots`; risky locations are copied there, never moved | Imports reference originals in place, so they must stay put; Shoots avoids iCloud eviction and macOS folder-permission prompts |
+| 2026-10-17 | Library at `~/Pictures/LightCraft Library` (LightCraft's default) | A Dock launch opens the same library; Claude reopens it with remote control when needed |
+| 2026-10-17 | Setup writes exact-path allow rules; skills also declare `allowed-tools` | `allowed-tools` only covers the invoking turn; persistent rules cover review feedback. Exact paths (re-synced on update) avoid wildcards in the program position |
 | 2026-10-17 | Helper scripts are Python stdlib only | No pip installs on the user's Mac |
 | 2026-10-17 | Kit: Canon M50 + Sigma 30mm F1.4 DC DN | M50 CR3/C-RAW listed as exact in LightCraft; low-distortion prime |
