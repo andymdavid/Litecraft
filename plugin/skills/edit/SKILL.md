@@ -102,6 +102,10 @@ When the user says to export (or approves everything):
 3. MCP `export {ids: [all lc_ids not rejected], dir: DEST, format: "jpeg"|"tif", longEdge: export.long_edge_px (0 = full size), quality: 90, colorSpace: "srgb"}`.
 4. Mark photos `exported`, `lc.py job set NAME --stage exported`, then `open DEST` so Finder shows the files. Tell the user where they are and how many.
 
+## Housekeeping
+
+When the user asks what they can delete or how to free space: `lc.py job list` and `du -sh` the `~/LiteCraft/Shoots/<name>` folders (and the job's `export/`) to show sizes. Explain that LightCraft needs a shoot's originals to re-export or change it, so they should only delete shoots that are delivered and backed up. Only delete anything after they name it and confirm; never delete originals that live outside `~/LiteCraft/Shoots`.
+
 ## Rules
 
 - Never modify, move or delete the user's original files. Copies into `~/LiteCraft/Shoots` are fine; moves never are.
