@@ -119,7 +119,7 @@ If they have distinct styles (e.g. a moody evening look), repeat with those pair
 
 ## 8. `complete`
 
-Summarise in plain words: what's installed, their preferences, camera profile, lens preset, the look and where backups are (`~/LiteCraft/presets`). Tell them how to start a job ("Edit the photos in Desktop/Smith Kitchen") and that they can change any preference by just saying so. `lc.py setup done complete`.
+Summarise in plain words: what's installed, their preferences, camera profile, lens preset, the look and where backups are (`~/LiteCraft/presets`). Show them their Shoots folder (`open ~/LiteCraft/Shoots`) and suggest dragging it into Finder's sidebar; explain that each shoot goes in its own folder there. Tell them how to start a job ("Edit the Smith Kitchen shoot", or "Edit the photos on my memory card") and that they can change any preference by just saying so. `lc.py setup done complete`.
 
 ## Rules
 
