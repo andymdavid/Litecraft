@@ -169,7 +169,7 @@ Rules:
 
 ### Status inside LightCraft
 
-So the user can filter to what needs attention without a separate app. Exact mapping depends on which flag/label commands MCP exposes **(verify)**:
+So the user can filter to what needs attention without a separate app. Commands: `photo.label`, `photo.flag`, `photo.setMeta` (verified in connect mode).
 
 | Status | LightCraft marker |
 |---|---|
@@ -178,7 +178,7 @@ So the user can filter to what needs attention without a separate app. Exact map
 | approved (user OK'd) | pick flag |
 | reject (don't export) | reject flag |
 
-Photo IDs (e.g. `#12`) and slugs are written as keywords so the user can search and refer to photos in chat **(verify)**.
+Photo IDs and slugs go in the **title** (`#12 kitchen-island`) and a hierarchical keyword (`litecraft|#12`), via `photo.setMeta`. Claude's plain-English summary of what changed and why goes in the **caption**, so the audit trail is visible inside LightCraft. Keep keywords out of exports (`keyword.edit {includeOnExport: false}`).
 
 ---
 
@@ -226,12 +226,15 @@ Inputs:
 - [ ] Confirm the living-room reference was shot on the M50 (it looks wider/phone-like)
 
 Tasks:
-- [~] Build `lightcraft` + `lightcraft-cli` from source into `vendor/lightcraft` (gitignored) — source is **v0.8.0** (commit `f34c7a8`, 2026-10-15). For handover, use the macOS release assets instead (app + separate `lightcraft-cli-<version>-macos-<arch>.zip`, same version, verify `SHA256SUMS.txt`)
-- [ ] Headless MCP from Claude Code: `lightcraft-cli mcp --library <dir>` **(verify)**
-- [ ] `render_preview` returns an image Claude can see **(verify)**
+- [x] Build `lightcraft` + `lightcraft-cli` from source into `vendor/lightcraft` (gitignored) — source is **v0.8.0** (commit `f34c7a8`, 2026-10-15). For handover, use the macOS release assets instead (app + separate `lightcraft-cli-<version>-macos-<arch>.zip`, same version, verify `SHA256SUMS.txt`). Release build on M4 / 16 GB: ~3 min
+- [x] Headless MCP: `lightcraft-cli mcp --library <dir>` — import, `set_develop`, `crop`, `get_develop` all work (tested with `dev/mcp_probe.py`)
+- [x] `render_photo` returns image content Claude can see (JPEG/PNG, `size` = long edge)
 - [ ] M50 CR3 + C-RAW decode on real files (docs list the M50 as exact for both) **(verify)**
-- [ ] **Hand-off test:** headless edit → release lock → `lightcraft --control 7980` → `mcp --connect` → Claude sees the edits; user tweak in app is visible via `get_develop` **(verify)**
-- [ ] Flags / colour labels / keywords settable via MCP **(verify)**
+- [x] **Hand-off:** headless edits persist in the library → `lightcraft --library <dir> --control 7980` shows them → `mcp --connect 127.0.0.1:7980` reads/edits the live app, `screenshot` works
+- [x] Library lock: headless `--library` on an open library fails with a clear message pointing at `--control` / `--connect`
+- [ ] User slider tweak in the app visible via `get_develop` in connect mode
+- [x] Status markers via `run_command`: `photo.label {label, ids}`, `photo.flag {flag, ids}`, `photo.setMeta {ids, title, caption, addKeywords}` — label shows on the filmstrip; query by `filter: {label}`
+- [ ] Check how the caption renders in the app's info panel (candidate audit surface: per-photo "what changed and why")
 - [ ] `crop` tool: apply a 4:5 rect, confirm export honours it **(verify)**
 - [ ] Colour test: M50 rendering (per-file JPEG fit) vs. human finals
 - [ ] **M50 camera profile:** `lightcraft-cli calibrate --max 300 <folders of M50 CR3s>` pools many files against their embedded JPEGs into one per-model profile (needs ≥ 5 usable photos; CR3 supported). Targets Canon's own look, not Adobe's — the camera base preset bridges the rest. Note: Canon Auto Lighting Optimizer isn't modelled — recommend turning ALO off in camera
