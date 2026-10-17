@@ -70,7 +70,8 @@ def paths():
         "env": os.path.join(h, "litecraft.env"),
         "setup": os.path.join(h, "setup.json"),
         "preferences": os.path.join(h, "preferences.json"),
-        "library": os.path.join(h, "Library"),
+        # LightCraft's own default library location, so opening LightCraft from the Dock shows the same photos.
+        "library": os.path.expanduser(os.environ.get("LITECRAFT_LIBRARY", "~/Pictures/LightCraft Library")),
         "presets": os.path.join(h, "presets"),
         "references": os.path.join(h, "references"),
         "jobs": os.path.join(h, "Jobs"),

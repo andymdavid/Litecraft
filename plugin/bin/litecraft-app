@@ -16,7 +16,7 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 APP="${LIGHTCRAFT_APP:-/Applications/LightCraft.app}"
 PORT="${LITECRAFT_PORT:-7980}"
-LIBRARY="${LITECRAFT_LIBRARY:-$LITECRAFT_HOME/Library}"
+LIBRARY="${LITECRAFT_LIBRARY:-$HOME/Pictures/LightCraft Library}"
 
 listening() { nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1; }
 app_running() { pgrep -x LightCraft >/dev/null 2>&1 || pgrep -x lightcraft >/dev/null 2>&1; }
