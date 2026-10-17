@@ -18,10 +18,10 @@ User data lives in `~/LiteCraft` (`lc.py paths` shows every location).
 ## Start
 
 1. `lc.py setup status` → `next` is the step to do. If everything is done, say so and offer to redo a step.
-2. On a first run, briefly explain what setup does (5–20 minutes of their time, mostly pointing you at folders) and what you'll ask for:
+2. On a first run, briefly explain what setup does — about an hour in total (up to two with many reference pairs), of which ~20 minutes needs them; the look step is the longest (a few minutes per pair) — and what you'll ask for:
    - a folder of past shoot photos straight off the camera (`.CR3`), for the camera colour profile
    - optionally a few photos taken wide open of a plain wall, for the lens
-   - 5–20 **before/after pairs**: the original `.CR3` and the finished edit exported from Lightroom (full-size JPEG)
+   - **before/after pairs**: the original `.CR3` and the finished edit exported from Lightroom (full-size JPEG) — recommend starting with 5–10; more can be added later by redoing the look step
    - 3–5 new photos for a test run
 3. Do the steps below in order. After each: `lc.py setup done STEP --note "…"` (or `setup skip STEP --note "why"` for optional steps the user declines). To redo a step: `lc.py setup reset STEP`.
 
@@ -37,7 +37,7 @@ Pinned version: **0.8.0**. Only upgrade when the LiteCraft repo says a newer ver
 
 If `lc.py env check` already reports `ok` with `lightcraft-cli 0.8.0`, mark done and move on.
 
-Otherwise (ask before downloading ~320 MB):
+Otherwise (ask before downloading ~210 MB):
 
 ```bash
 VER=0.8.0
@@ -92,7 +92,7 @@ Corrects the slight darkening in the corners at wide apertures (Sigma 30mm F1.4 
 
 The heart of setup: learn the user's house look from their own before/after pairs.
 
-1. **Collect pairs.** Ask for the folder(s). For each pair you need the **original** `.CR3` and the **final** JPEG exported from Lightroom. Match them by file name (Lightroom usually keeps the base name, e.g. `IMG_0412.CR3` ↔ `IMG_0412.jpg`); if names don't match, ask. Copy each pair into `~/LiteCraft/references/<base name>/` (`original.CR3`, `final.jpg`). Aim for 5–20 pairs covering their usual scenes (rooms and vignettes, bright and dim).
+1. **Collect pairs.** Ask for the folder(s). For each pair you need the **original** `.CR3` and the **final** JPEG exported from Lightroom. Match them by file name (Lightroom usually keeps the base name, e.g. `IMG_0412.CR3` ↔ `IMG_0412.jpg`); if names don't match, ask. Copy each pair into `~/LiteCraft/references/<base name>/` (`original.CR3`, `final.jpg`). Aim for 5–10 pairs to start, covering their usual scenes (rooms and vignettes, bright and dim); each takes a few minutes to match. Tell the user roughly how long it will take before starting, and give a short progress line after each pair.
 2. **Seed preset.** `album.create {name: "LiteCraft References"}`, import the originals into it. Select the first; `set_develop {settings: <the "settings" object from ${CLAUDE_PLUGIN_ROOT}/defaults/looks/bright-natural.json>}`; `preset.create {name: "LiteCraft · Bright Natural", group: "LiteCraft", groups: ["light", "color", "effects"]}`.
 3. **Match each pair.** For each original:
    - `apply_preset` the look; match the final's **framing** first (`crop`; finals are usually 4:5) and straighten if the final is straightened.
