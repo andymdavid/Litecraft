@@ -288,7 +288,7 @@ def cmd_job(a):
         d = job_dir(a.name)
         if os.path.exists(os.path.join(d, "job.json")):
             fail(f"job {a.name!r} already exists")
-        for sub in ("log", "export"):
+        for sub in ("log", "export", "previews"):
             os.makedirs(os.path.join(d, sub), exist_ok=True)
         job = {"schema": 1, "name": a.name, "source": os.path.abspath(os.path.expanduser(a.source)),
                "album_id": None, "created": now(), "stage": "editing", "overrides": {}, "photos": []}
