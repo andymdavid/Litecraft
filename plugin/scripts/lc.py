@@ -1,0 +1,593 @@
+#!/usr/bin/env python3
+"""LiteCraft helper CLI — state, preferences, jobs, logs, crop candidates, image stats.
+
+Stdlib only. All user state lives under LITECRAFT_HOME (default ~/LiteCraft).
+Every command prints JSON on stdout; errors go to stderr with exit status 1.
+
+  lc.py paths
+  lc.py env init --cli PATH --app PATH [--port 7980] [--library DIR]
+  lc.py env show | env check
+  lc.py setup status | setup done STEP [--note TEXT] | setup skip STEP [--note TEXT] | setup reset STEP
+  lc.py prefs show | prefs get KEY | prefs set KEY VALUE | prefs missing | prefs questions
+  lc.py job new NAME --source DIR | job list | job show NAME
+  lc.py job add-photos NAME --json '[{"lc_id":..,"file":..,"orientation":..}, ...]'
+  lc.py job photo NAME N [--status S] [--slug S] [--iterations N] [--flag-reason TEXT] [--lc-id N]
+  lc.py job set NAME [--stage S] [--album-id N]
+  lc.py job override NAME KEY VALUE | job resolve NAME KEY
+  lc.py log add NAME N --json ENTRY | log show NAME N
+  lc.py crop --width W --height H --aspect 4:5|5:4|none
+  lc.py stats IMAGE | compare IMAGE_A IMAGE_B
+"""
+import argparse
+import datetime as dt
+import json
+import os
+import re
+import struct
+import subprocess
+import sys
+import tempfile
+
+PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_PORT = 7980
+
+SETUP_STEPS = [
+    "preflight",
+    "install_lightcraft",
+    "preferences",
+    "camera_profile",
+    "lens",
+    "look",
+    "test_job",
+    "complete",
+]
+
+
+# ---------------------------------------------------------------- utilities
+
+def fail(msg):
+    print(f"lc.py: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def out(obj):
+    print(json.dumps(obj, indent=2, ensure_ascii=False))
+
+
+def now():
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def home():
+    return os.path.expanduser(os.environ.get("LITECRAFT_HOME", "~/LiteCraft"))
+
+
+def paths():
+    h = home()
+    return {
+        "home": h,
+        "env": os.path.join(h, "litecraft.env"),
+        "setup": os.path.join(h, "setup.json"),
+        "preferences": os.path.join(h, "preferences.json"),
+        "library": os.path.join(h, "Library"),
+        "presets": os.path.join(h, "presets"),
+        "references": os.path.join(h, "references"),
+        "jobs": os.path.join(h, "Jobs"),
+        "bin": os.path.join(h, "bin"),
+        "plugin_root": PLUGIN_ROOT,
+        "default_preferences": os.path.join(PLUGIN_ROOT, "defaults", "preferences.json"),
+    }
+
+
+def read_json(path, default=None):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return default
+
+
+def write_json(path, obj):
+    """Atomic write: temp file in the same directory, then rename."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".tmp-")
+    with os.fdopen(fd, "w") as f:
+        json.dump(obj, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def parse_value(text):
+    """JSON when it parses (numbers, true/false/null, objects), else the raw string."""
+    try:
+        return json.loads(text)
+    except ValueError:
+        return text
+
+
+def get_dotted(obj, key):
+    for part in key.split("."):
+        if not isinstance(obj, dict) or part not in obj:
+            raise KeyError(key)
+        obj = obj[part]
+    return obj
+
+
+def set_dotted(obj, key, value):
+    parts = key.split(".")
+    for part in parts[:-1]:
+        obj = obj.setdefault(part, {})
+    obj[parts[-1]] = value
+
+
+# ---------------------------------------------------------------- env
+
+def read_env():
+    env = {}
+    try:
+        with open(paths()["env"]) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip().strip('"')
+    except FileNotFoundError:
+        pass
+    return env
+
+
+def cmd_env(a):
+    p = paths()
+    if a.action == "init":
+        env = {
+            "LIGHTCRAFT_CLI": os.path.abspath(os.path.expanduser(a.cli)),
+            "LIGHTCRAFT_APP": os.path.abspath(os.path.expanduser(a.app)),
+            "LITECRAFT_PORT": str(a.port),
+            "LITECRAFT_LIBRARY": os.path.abspath(os.path.expanduser(a.library or p["library"])),
+        }
+        os.makedirs(p["home"], exist_ok=True)
+        tmp = p["env"] + ".tmp"
+        with open(tmp, "w") as f:
+            f.write("# Written by lc.py env init — paths LiteCraft uses to run LightCraft.\n")
+            for k, v in env.items():
+                f.write(f'{k}="{v}"\n')
+        os.replace(tmp, p["env"])
+        for d in ("jobs", "presets", "references"):
+            os.makedirs(p[d], exist_ok=True)
+        out(env)
+    elif a.action == "show":
+        out(read_env())
+    elif a.action == "check":
+        env = read_env()
+        report = {"env_file": os.path.exists(p["env"]), "ok": True, "problems": []}
+        for key in ("LIGHTCRAFT_CLI", "LIGHTCRAFT_APP"):
+            path = env.get(key)
+            if not path or not os.path.exists(path):
+                report["ok"] = False
+                report["problems"].append(f"{key} missing or not found: {path}")
+        if env.get("LIGHTCRAFT_CLI") and os.path.exists(env["LIGHTCRAFT_CLI"]):
+            try:
+                v = subprocess.run([env["LIGHTCRAFT_CLI"], "--version"], capture_output=True, text=True, timeout=20)
+                report["cli_version"] = v.stdout.strip()
+            except (OSError, subprocess.TimeoutExpired) as e:
+                report["ok"] = False
+                report["problems"].append(f"cli did not run: {e}")
+        report.update(env)
+        out(report)
+
+
+# ---------------------------------------------------------------- setup state
+
+def load_setup():
+    return read_json(paths()["setup"], {"schema": 1, "steps": {}})
+
+
+def cmd_setup(a):
+    state = load_setup()
+    if a.action in ("done", "skip", "reset"):
+        if a.step not in SETUP_STEPS:
+            fail(f"unknown step {a.step!r}; steps: {', '.join(SETUP_STEPS)}")
+        if a.action == "reset":
+            state["steps"].pop(a.step, None)
+        else:
+            state["steps"][a.step] = {"status": "done" if a.action == "done" else "skipped",
+                                      "at": now(), "note": a.note}
+        write_json(paths()["setup"], state)
+    steps = [{"step": s, **state["steps"].get(s, {"status": "todo"})} for s in SETUP_STEPS]
+    nxt = next((s["step"] for s in steps if s["status"] == "todo"), None)
+    out({"complete": state["steps"].get("complete", {}).get("status") == "done",
+         "next": nxt, "steps": steps})
+
+
+# ---------------------------------------------------------------- preferences
+
+def default_prefs():
+    d = read_json(paths()["default_preferences"])
+    if d is None:
+        fail(f"missing {paths()['default_preferences']}")
+    return d
+
+
+def resolved_prefs(overrides=None):
+    d = default_prefs()
+    user = read_json(paths()["preferences"], {})
+    prefs = {}
+    for q in d["questions"]:
+        key = q["key"]
+        try:
+            value = get_dotted(user, key)
+        except KeyError:
+            value = q.get("default")
+        if overrides and key in overrides:
+            value = overrides[key]
+        set_dotted(prefs, key, value)
+    return prefs
+
+
+def cmd_prefs(a):
+    d = default_prefs()
+    keys = {q["key"]: q for q in d["questions"]}
+    user = read_json(paths()["preferences"], {"schema": 1})
+    if a.action == "show":
+        out(resolved_prefs())
+    elif a.action == "questions":
+        out(d["questions"])
+    elif a.action == "get":
+        if a.key not in keys:
+            fail(f"unknown preference {a.key!r}")
+        out({a.key: get_dotted(resolved_prefs(), a.key)})
+    elif a.action == "set":
+        if a.key not in keys:
+            fail(f"unknown preference {a.key!r}; known: {', '.join(keys)}")
+        value = parse_value(a.value)
+        allowed = keys[a.key].get("options")
+        if allowed and value not in allowed and not keys[a.key].get("free"):
+            fail(f"{a.key} must be one of {allowed}")
+        set_dotted(user, a.key, value)
+        user["updated"] = now()
+        write_json(paths()["preferences"], user)
+        out({a.key: value})
+    elif a.action == "missing":
+        missing = []
+        for q in d["questions"]:
+            try:
+                get_dotted(user, q["key"])
+            except KeyError:
+                missing.append(q)
+        out(missing)
+
+
+# ---------------------------------------------------------------- jobs
+
+def job_dir(name):
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,80}", name):
+        fail(f"job name {name!r}: use letters, numbers, spaces, - _ .")
+    return os.path.join(paths()["jobs"], name)
+
+
+def load_job(name):
+    job = read_json(os.path.join(job_dir(name), "job.json"))
+    if job is None:
+        fail(f"no job named {name!r}")
+    return job
+
+
+def save_job(job):
+    write_json(os.path.join(job_dir(job["name"]), "job.json"), job)
+
+
+def find_photo(job, n):
+    for p in job["photos"]:
+        if p["n"] == n:
+            return p
+    fail(f"job {job['name']!r} has no photo #{n}")
+
+
+def cmd_job(a):
+    if a.action == "new":
+        d = job_dir(a.name)
+        if os.path.exists(os.path.join(d, "job.json")):
+            fail(f"job {a.name!r} already exists")
+        for sub in ("log", "export"):
+            os.makedirs(os.path.join(d, sub), exist_ok=True)
+        job = {"schema": 1, "name": a.name, "source": os.path.abspath(os.path.expanduser(a.source)),
+               "album_id": None, "created": now(), "stage": "editing", "overrides": {}, "photos": []}
+        save_job(job)
+        out({**job, "dir": d})
+    elif a.action == "list":
+        root = paths()["jobs"]
+        jobs = []
+        for name in sorted(os.listdir(root)) if os.path.isdir(root) else []:
+            j = read_json(os.path.join(root, name, "job.json"))
+            if j:
+                counts = {}
+                for p in j["photos"]:
+                    counts[p["status"]] = counts.get(p["status"], 0) + 1
+                jobs.append({"name": j["name"], "stage": j["stage"], "created": j["created"], "counts": counts})
+        out(jobs)
+    elif a.action == "show":
+        out({**load_job(a.name), "dir": job_dir(a.name)})
+    elif a.action == "add-photos":
+        job = load_job(a.name)
+        n = max((p["n"] for p in job["photos"]), default=0)
+        added = []
+        for item in json.loads(a.json):
+            n += 1
+            photo = {"n": n, "lc_id": item.get("lc_id"), "file": item.get("file"),
+                     "slug": item.get("slug"), "orientation": item.get("orientation"),
+                     "status": "queued", "iterations": 0, "flag_reason": None, "updated": now()}
+            job["photos"].append(photo)
+            added.append(photo)
+        save_job(job)
+        out(added)
+    elif a.action == "photo":
+        job = load_job(a.name)
+        photo = find_photo(job, a.n)
+        for field in ("status", "slug", "iterations", "flag_reason", "lc_id"):
+            value = getattr(a, field)
+            if value is not None:
+                photo[field] = value
+        photo["updated"] = now()
+        save_job(job)
+        out(photo)
+    elif a.action == "set":
+        job = load_job(a.name)
+        if a.stage:
+            job["stage"] = a.stage
+        if a.album_id is not None:
+            job["album_id"] = a.album_id
+        save_job(job)
+        out({k: job[k] for k in ("name", "stage", "album_id")})
+    elif a.action == "override":
+        job = load_job(a.name)
+        job["overrides"][a.key] = parse_value(a.value)
+        save_job(job)
+        out(job["overrides"])
+    elif a.action == "resolve":
+        job = load_job(a.name)
+        out({a.key: get_dotted(resolved_prefs(job["overrides"]), a.key)})
+
+
+# ---------------------------------------------------------------- logs
+
+def cmd_log(a):
+    load_job(a.name)
+    path = os.path.join(job_dir(a.name), "log", f"{a.n}.json")
+    log = read_json(path, {"schema": 1, "n": a.n, "entries": []})
+    if a.action == "add":
+        entry = json.loads(a.json)
+        entry.setdefault("at", now())
+        log["entries"].append(entry)
+        write_json(path, log)
+        out(entry)
+    else:
+        out(log)
+
+
+# ---------------------------------------------------------------- crop
+
+def parse_aspect(text):
+    m = re.fullmatch(r"(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)", text)
+    if not m:
+        fail(f"aspect {text!r}: use W:H, e.g. 4:5")
+    return float(m.group(1)) / float(m.group(2))
+
+
+def cmd_crop(a):
+    w, h = float(a.width), float(a.height)
+    if a.aspect == "none":
+        out({"aspect": "none", "candidates": [{"name": "full", "rect": [0, 0, 1, 1], "keeps": 1.0}]})
+        return
+    target = parse_aspect(a.aspect)
+    source = w / h
+    candidates = []
+    if target < source:
+        # Narrower than the source: full height, slide horizontally.
+        cw = target / source
+        positions = {"centre": 0.5, "left-third": 1 / 3, "right-third": 2 / 3, "left": cw / 2, "right": 1 - cw / 2}
+        for name, cx in positions.items():
+            x0 = min(max(cx - cw / 2, 0.0), 1.0 - cw)
+            candidates.append({"name": name, "rect": [round(x0, 4), 0.0, round(x0 + cw, 4), 1.0]})
+        keeps = cw
+    else:
+        # Wider than (or equal to) the source: full width, slide vertically.
+        ch = source / target
+        positions = {"centre": 0.5, "lower": 0.5 + (1 - ch) / 4, "upper": 0.5 - (1 - ch) / 4,
+                     "bottom": 1 - ch / 2, "top": ch / 2}
+        for name, cy in positions.items():
+            y0 = min(max(cy - ch / 2, 0.0), 1.0 - ch)
+            candidates.append({"name": name, "rect": [0.0, round(y0, 4), 1.0, round(y0 + ch, 4)]})
+        keeps = ch
+    # Drop duplicates (small differences collapse at the edges).
+    seen, unique = set(), []
+    for c in candidates:
+        key = tuple(c["rect"])
+        if key not in seen:
+            seen.add(key)
+            c["keeps"] = round(keeps, 3)
+            unique.append(c)
+    out({"aspect": a.aspect, "source_aspect": round(source, 4), "keeps_fraction": round(keeps, 3),
+         "heavy": keeps < 0.75, "candidates": unique})
+
+
+# ---------------------------------------------------------------- image stats
+
+def load_pixels(path, size=256):
+    """Decode any image macOS can read via `sips` into a list of (r, g, b) 0..255."""
+    if not os.path.exists(path):
+        fail(f"no such image {path}")
+    with tempfile.TemporaryDirectory() as tmp:
+        bmp = os.path.join(tmp, "x.bmp")
+        r = subprocess.run(["sips", "-s", "format", "bmp", "-Z", str(size), path, "--out", bmp],
+                           capture_output=True, text=True)
+        if r.returncode != 0 or not os.path.exists(bmp):
+            fail(f"sips could not read {path}: {r.stderr.strip()}")
+        data = open(bmp, "rb").read()
+    offset = struct.unpack_from("<I", data, 10)[0]
+    width, height = struct.unpack_from("<ii", data, 18)
+    bpp = struct.unpack_from("<H", data, 28)[0]
+    if bpp not in (24, 32):
+        fail(f"unsupported BMP depth {bpp}")
+    step = bpp // 8
+    row = (width * step + 3) & ~3
+    pixels = []
+    for y in range(abs(height)):
+        base = offset + y * row
+        for x in range(width):
+            b, g, r_ = data[base + x * step: base + x * step + 3]
+            pixels.append((r_, g, b))
+    return pixels, width, abs(height)
+
+
+def srgb_to_linear(c):
+    c /= 255.0
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def image_stats(path):
+    pixels, w, h = load_pixels(path)
+    lin = [srgb_to_linear(i) for i in range(256)]
+    lums, warmth, sats = [], [], []
+    clip_hi = clip_lo = 0
+    for r, g, b in pixels:
+        y = 0.2126 * lin[r] + 0.7152 * lin[g] + 0.0722 * lin[b]
+        lstar = 116 * (y ** (1 / 3)) - 16 if y > 0.008856 else 903.3 * y
+        lums.append(lstar)
+        warmth.append((r - b) / 255.0)
+        mx, mn = max(r, g, b), min(r, g, b)
+        sats.append(0.0 if mx == 0 else (mx - mn) / mx)
+        if mx >= 250:
+            clip_hi += 1
+        if mx <= 5:
+            clip_lo += 1
+    n = len(lums)
+    s = sorted(lums)
+
+    def pct(p):
+        return round(s[min(n - 1, int(p / 100 * n))], 1)
+
+    return {
+        "image": path, "sample_size": [w, h],
+        "lightness_mean": round(sum(lums) / n, 1),
+        "lightness_p5": pct(5), "lightness_p50": pct(50), "lightness_p95": pct(95),
+        "clipped_highlights_pct": round(100 * clip_hi / n, 2),
+        "crushed_shadows_pct": round(100 * clip_lo / n, 2),
+        "warmth_mean": round(sum(warmth) / n, 3),
+        "saturation_mean": round(sum(sats) / n, 3),
+    }
+
+
+def cmd_stats(a):
+    out(image_stats(a.image))
+
+
+def cmd_compare(a):
+    sa, sb = image_stats(a.a), image_stats(a.b)
+    keys = [k for k in sa if isinstance(sa[k], (int, float))]
+    out({"a": a.a, "b": a.b, "delta_b_minus_a": {k: round(sb[k] - sa[k], 3) for k in keys},
+         "a_stats": sa, "b_stats": sb,
+         "hint": "lightness ~ exposure/tone, warmth ~ white balance temp, saturation ~ vibrance/saturation"})
+
+
+# ---------------------------------------------------------------- main
+
+def main():
+    ap = argparse.ArgumentParser(prog="lc.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("paths").set_defaults(fn=lambda a: out(paths()))
+
+    e = sub.add_parser("env")
+    e.add_argument("action", choices=["init", "show", "check"])
+    e.add_argument("--cli")
+    e.add_argument("--app")
+    e.add_argument("--port", type=int, default=DEFAULT_PORT)
+    e.add_argument("--library")
+    e.set_defaults(fn=cmd_env)
+
+    s = sub.add_parser("setup")
+    s.add_argument("action", choices=["status", "done", "skip", "reset"])
+    s.add_argument("step", nargs="?")
+    s.add_argument("--note")
+    s.set_defaults(fn=cmd_setup)
+
+    p = sub.add_parser("prefs")
+    p.add_argument("action", choices=["show", "get", "set", "missing", "questions"])
+    p.add_argument("key", nargs="?")
+    p.add_argument("value", nargs="?")
+    p.set_defaults(fn=cmd_prefs)
+
+    j = sub.add_parser("job")
+    j.add_argument("action", choices=["new", "list", "show", "add-photos", "photo", "set", "override", "resolve"])
+    j.add_argument("name", nargs="?")
+    j.add_argument("n_or_key", nargs="?")
+    j.add_argument("value", nargs="?")
+    j.add_argument("--source")
+    j.add_argument("--json")
+    j.add_argument("--status", choices=["queued", "editing", "done", "flagged", "approved", "rejected", "exported"])
+    j.add_argument("--slug")
+    j.add_argument("--iterations", type=int)
+    j.add_argument("--flag-reason")
+    j.add_argument("--lc-id", type=int)
+    j.add_argument("--stage", choices=["editing", "review", "exported"])
+    j.add_argument("--album-id", type=int)
+    j.set_defaults(fn=cmd_job)
+
+    lg = sub.add_parser("log")
+    lg.add_argument("action", choices=["add", "show"])
+    lg.add_argument("name")
+    lg.add_argument("n", type=int)
+    lg.add_argument("--json")
+    lg.set_defaults(fn=cmd_log)
+
+    c = sub.add_parser("crop")
+    c.add_argument("--width", required=True, type=float)
+    c.add_argument("--height", required=True, type=float)
+    c.add_argument("--aspect", required=True)
+    c.set_defaults(fn=cmd_crop)
+
+    st = sub.add_parser("stats")
+    st.add_argument("image")
+    st.set_defaults(fn=cmd_stats)
+
+    cp = sub.add_parser("compare")
+    cp.add_argument("a")
+    cp.add_argument("b")
+    cp.set_defaults(fn=cmd_compare)
+
+    a = ap.parse_args()
+
+    # Validate per-action required arguments (argparse can't express these cleanly).
+    if a.cmd == "env" and a.action == "init" and not (a.cli and a.app):
+        fail("env init needs --cli and --app")
+    if a.cmd == "setup" and a.action != "status" and not a.step:
+        fail(f"setup {a.action} needs a STEP")
+    if a.cmd == "prefs" and a.action in ("get", "set") and not a.key:
+        fail(f"prefs {a.action} needs a KEY")
+    if a.cmd == "prefs" and a.action == "set" and a.value is None:
+        fail("prefs set needs a VALUE")
+    if a.cmd == "job":
+        if a.action != "list" and not a.name:
+            fail(f"job {a.action} needs a NAME")
+        if a.action == "new" and not a.source:
+            fail("job new needs --source")
+        if a.action == "add-photos" and not a.json:
+            fail("job add-photos needs --json")
+        if a.action == "photo":
+            if not (a.n_or_key or "").isdigit():
+                fail("job photo needs a photo number N")
+            a.n = int(a.n_or_key)
+        if a.action in ("override", "resolve"):
+            if not a.n_or_key:
+                fail(f"job {a.action} needs a KEY")
+            a.key = a.n_or_key
+            if a.action == "override" and a.value is None:
+                fail("job override needs a VALUE")
+    if a.cmd == "log" and a.action == "add" and not a.json:
+        fail("log add needs --json")
+
+    a.fn(a)
+
+
+if __name__ == "__main__":
+    main()
