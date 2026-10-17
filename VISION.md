@@ -11,8 +11,7 @@ Interior design photography is currently edited by hand in Adobe Lightroom. The 
 An agent-driven editing pipeline that a non-technical user runs from the **Claude desktop app**:
 
 - **Claude** (Claude Code, in the desktop app's Code tab) does the editing, guided by a **house-style skill**.
-- **LightCraft runs headless** as the editing engine during the batch pass — Claude drives it over MCP: presets, per-photo corrections, and the **4:5 crop**.
-- **LightCraft's desktop app is the review surface.** When the batch is done, Claude opens the same library in LightCraft and connects to the running app. The user inspects every photo, and can **fine-tune any slider directly** for subtle changes.
+- **LightCraft is the editing engine and the review surface.** At the start of a job Claude opens the LightCraft desktop app and drives it over MCP — presets, per-photo corrections, the **4:5 crop** — so the user can watch edits happen live, inspect every photo, and **fine-tune any slider directly**.
 - **Feedback goes back to Claude in plain language** ("#12 is too warm", "#15 the window's blown") — Claude applies it live in the open app. Claude also **reads the user's own slider tweaks** and learns from them.
 
 The user directs, reviews and nudges. Claude does the heavy lifting and explains what it did in chat.
@@ -54,13 +53,17 @@ A single, non-technical user on a MacBook who currently hands photos to (or is) 
 - Retouching beyond global/local tone, colour and crop (object removal, virtual staging, sky replacement).
 - A custom viewer app — deferred; built only if LightCraft proves too complex for the user (see IMPLEMENTATION.md, Phase 5).
 
+## Setup happens on the user's Mac
+
+Everything tuned to the user's own photos — LightCraft install, preferences, camera profile, lens, the look derived from their before/after pairs — happens in a one-time **initialisation run** on their machine, driven by the plugin's setup skill. Their photos never leave their Mac.
+
 ## Known risks
 
 | Risk | Why it matters | Planned mitigation |
 |---|---|---|
-| LightCraft raw colour is estimated, not measured; no bundled M50 profile; no external `.dcp` | Colour won't match Lightroom out of the box | One camera → one camera base preset tuned against human finals; optionally contribute an M50 calibration upstream; DNG pre-conversion as a fallback |
+| LightCraft raw colour is estimated, not measured; no bundled M50 profile; no external `.dcp` | Colour won't match Lightroom out of the box | Build an M50 profile with `lightcraft-cli calibrate` from the user's past CR3s during initialisation; derive the look from their before/after pairs |
 | No lens profile database | Vignetting/distortion correction is manual | Single low-distortion prime → solve once, store in a lens base preset |
-| Library lock: headless and desktop can't open the same library at once | Hand-off between batch pass and review must be clean | Explicit hand-off step in the skill; connect mode for review **(verify)** |
+| Library lock: only one program can open the library | A background engine would block the desktop app | Connect mode only — Claude always drives the running desktop app |
 | LightCraft's UI is Lightroom-like | May overwhelm a non-technical user | Use flags/colour labels for status so they can filter to "needs review"; fall back to a simple viewer (Phase 5) |
 | Automated 4:5 crop composition | A bad crop is very visible | Composition rules in the house style; crop reasons logged; easy manual adjust in LightCraft |
 | Smart masks are heuristic | Window pulls may be weaker | Luminance-range + gradient masks; test external mask import |
