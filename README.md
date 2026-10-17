@@ -6,7 +6,7 @@ You point Claude at a folder of photos from a shoot. Claude edits them in your h
 
 You never have to touch a slider unless you want to.
 
-> **Status: in development.** This guide describes how LiteCraft will work. Steps marked 🚧 aren't built yet. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for progress.
+> **Status: early version.** The plugin is built; the first real setup on a user's Mac is next. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for progress.
 
 ---
 
@@ -21,14 +21,63 @@ Currently tuned for a **Canon EOS M50** with a **Sigma 30mm F1.4** lens. Other c
 
 ---
 
-## One-time setup 🚧
+## One-time setup
 
-You only do this once. If someone has set it up for you, skip to [Your first job](#your-first-job).
+You only do this once. It takes about 20–30 minutes, mostly Claude working while you point it at a few folders. If someone has set it up for you, skip to [Your first job](#your-first-job).
 
-1. **Install the Claude desktop app** and sign in.
-2. **Install LightCraft** — the setup steps will install the right version for you.
-3. **Install the LiteCraft plugin** in Claude.
-4. Open the **Code** tab in the Claude app. LiteCraft runs there, because it needs to work with files on your Mac.
+### 1. Install the Claude app
+
+Install the **Claude desktop app** and sign in. Open the **Code** tab — LiteCraft runs there, because it works with files on your Mac. Choose a folder to work in when asked (any folder is fine, e.g. your home folder).
+
+### 2. Install the LiteCraft plugin
+
+In the Code tab, type these two lines one at a time:
+
+```
+/plugin marketplace add andymdavid/Litecraft
+/plugin install litecraft@litecraft
+```
+
+Then start a new session so Claude picks it up.
+
+### 3. Run setup
+
+Type:
+
+> Set up LiteCraft
+
+Claude walks you through it, one step at a time:
+
+1. **Installs LightCraft**, the free photo editor LiteCraft uses (it asks before downloading).
+2. **Asks how you like things** — crop shape, export size and so on (see below).
+3. **Learns your camera's colours** from a folder of past photos straight off the camera.
+4. **Corrects your lens** (optional) from a couple of photos of a plain wall at a wide aperture.
+5. **Learns your look** from **before/after pairs** — the original photo and your finished edit from Lightroom. 5–20 pairs is ideal.
+6. **Runs a test job** on 3–5 new photos so you can try reviewing and giving feedback.
+
+Have these ready (copies are fine, nothing is changed):
+- a folder of past shoot photos (`.CR3` files), the more the better
+- your before/after pairs: each original `.CR3` and its final edited JPEG
+- 3–5 new photos for the test
+
+If you stop partway, just say *"carry on with setup"* — it picks up where it left off.
+
+**Tip:** in your Canon M50's menu, turn **Auto Lighting Optimizer** off for future shoots. Claude will explain why during setup.
+
+### The questions Claude asks
+
+Each has a sensible default — you can just say *"defaults are fine"*.
+
+| Claude will ask | What it means |
+|---|---|
+| **Portrait photos — crop to 4:5?** | Tall photos get a light trim to the 4:5 shape, or stay as shot. |
+| **Landscape photos — how should they be cropped?** | Wide photos can become a **4:5 tall** crop (cuts a lot of the sides), a **5:4 wide** crop (light trim), or stay **uncropped**. |
+| **Which look?** | The house style to use, e.g. *Bright Natural*. |
+| **Export size and format** | Full size or smaller; JPEG is usual. |
+| **Where should finished photos go?** | Inside the job folder, or somewhere you choose. |
+| **Bring LightCraft to the front when editing is done?** | Usually yes. |
+
+Claude saves your answers, so it won't ask again.
 
 ---
 
@@ -44,31 +93,16 @@ In the Claude app's **Code** tab, type something like:
 
 > Edit the photos in Desktop/Smith Kitchen
 
-### 3. Answer a few questions (first time only)
+### 3. Let Claude work
 
-The first time you use LiteCraft, Claude asks a few quick questions so it knows how you like things. Each has a sensible default — you can just say *"defaults are fine"*.
-
-| Claude will ask | What it means |
-|---|---|
-| **Portrait photos — crop to 4:5?** | Tall photos get a light trim to the 4:5 shape, or stay as shot. |
-| **Landscape photos — how should they be cropped?** | Wide photos can become a **4:5 tall** crop (cuts a lot of the sides), a **5:4 wide** crop (light trim), or stay **uncropped**. |
-| **Which look?** | The house style to use, e.g. *Bright Natural*. |
-| **Export size and format** | Full size or smaller; JPEG is usual. |
-| **Where should finished photos go?** | Inside the job folder, or somewhere you choose. |
-| **Open LightCraft automatically when editing is done?** | Usually yes. |
-
-Claude saves your answers, so it won't ask again.
-
-### 4. Let Claude work
-
-Claude goes through each photo — applying the house style, straightening lines, cropping, and checking its own work. When it's done, it tells you in the chat:
+Claude opens **LightCraft** and goes through each photo — applying the house style, straightening lines, cropping, and checking its own work. You can watch it happen in the LightCraft window. When it's done, it tells you in the chat:
 
 - how many photos are **done**
 - which ones are **flagged** for you to look at, and why
 
-### 5. Check the photos in LightCraft
+### 4. Check the photos in LightCraft
 
-Claude opens **LightCraft** with your photos. Each photo is marked so you can see where things stand:
+Each job appears as an album in LightCraft's sidebar. Each photo is marked so you can see where things stand:
 
 | Mark in LightCraft | Meaning |
 |---|---|
@@ -77,11 +111,13 @@ Claude opens **LightCraft** with your photos. Each photo is marked so you can se
 | ⭐ Pick flag | You've approved it |
 | ✖ Reject flag | Don't export this one |
 
+Each photo's **title** has its number (like *#12 kitchen-island*) and its **caption** says, in plain words, what Claude changed and why.
+
 **Tip:** filter by the red label to see only the photos that need you.
 
 Each photo has a number (like **#12**) so you can talk about it with Claude.
 
-### 6. Give feedback — two ways
+### 5. Give feedback — two ways
 
 **Tell Claude** in the chat, in your own words:
 
@@ -96,7 +132,7 @@ Claude makes the change and you'll see it update in LightCraft.
 
 > ⚠️ Work on a different photo from the one Claude is changing. Claude will tell you when it's finished with a photo ("Done with #12 — over to you").
 
-### 7. Export
+### 6. Export
 
 When you're happy, tell Claude:
 
@@ -136,13 +172,17 @@ Nothing changes unless you say yes.
 
 ## Where things are
 
-Each job gets its own folder:
+Everything LiteCraft keeps is in the **LiteCraft** folder in your home folder:
 
 ```
-~/LiteCraft Jobs/Smith Kitchen/
-├── library/   LightCraft's copy of the edits (your original photos are never changed)
-├── log/       what was changed on each photo, and why
-└── export/    your finished photos
+~/LiteCraft/
+├── Library/              LightCraft's library: your edits (originals are never changed)
+├── Jobs/Smith Kitchen/
+│   ├── log/              what was changed on each photo, and why
+│   └── export/           your finished photos
+├── presets/              backups of your look and lens presets
+├── references/           copies of the before/after pairs from setup
+└── preferences.json      your answers to the setup questions
 ```
 
 **Your original photos are never modified.** All editing is non-destructive.
