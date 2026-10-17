@@ -1,0 +1,6 @@
+# Client photos never go in git
+Samples/
+samples/
+# Built from source locally
+vendor/
+.DS_Store
