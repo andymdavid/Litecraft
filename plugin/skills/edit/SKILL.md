@@ -53,7 +53,16 @@ For photo `#n` (LightCraft id `lc_id`):
    - Not right after 6 passes, or any "when to flag" case in house-style → label `red`, `lc.py job photo NAME n --status flagged --flag-reason "…"`.
    - `run_command photo.setMeta {ids: [lc_id], title: "#n slug", caption: "…"}` — caption: 2–5 short plain-English lines of what you changed and why (flag reason first if flagged).
    - `lc.py job photo NAME n --slug SLUG --iterations K`
-   - `lc.py log add NAME n --json '{"source": "agent", "changes": [...], "settings_after": <get_develop picked to light, wb, color, effects, crop, geometry>}'` — always include `settings_after`; it's how user tweaks are detected later.
+   - `lc.py log add NAME n --json '<entry>'` — one entry per photo pass. Each change is an object with the control id, old and new value, and why; presets, upright and crop are changes too. `settings_after` is `get_develop` cut to light, wb, color, effects, crop, geometry — it's how user tweaks are detected later. `lc.py` rejects entries that don't match. Example:
+     ```json
+     {"source": "agent",
+      "changes": [
+        {"control": "preset", "to": "LiteCraft · Bright Natural", "reason": "house look"},
+        {"control": "geometry.upright", "from": "off", "to": "auto", "reason": "door frames leaned left"},
+        {"control": "crop", "to": [0.25, 0.02, 0.80, 0.95], "reason": "4:5 centred on the artwork; windows cut, flagged"},
+        {"control": "light.exposure", "from": 0.0, "to": 0.75, "reason": "midtones 58, target 72-80 for a room"}],
+      "settings_after": {"light": {…}, "wb": {…}, "color": {…}, "effects": {…}, "crop": {…}, "geometry": {…}}}
+     ```
 
 ## 3. Hand over for review
 
