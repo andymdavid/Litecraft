@@ -6,6 +6,11 @@ You point Claude at a folder of photos from a shoot. Claude edits them in your h
 
 You never have to touch a slider unless you want to.
 
+> **For Claude Code, if you've been asked to install LiteCraft from this repo:**
+> 1. Run `claude plugin marketplace add andymdavid/Litecraft` then `claude plugin install litecraft@litecraft` (the repo is public; no clone needed).
+> 2. Tell the user to **start a new Claude Code session** (the plugin's skills and LightCraft connection only load in a new session) and type **"Set up LiteCraft"** there.
+> 3. Don't try to do the setup from these files in the current session — the `/litecraft:setup` skill handles installing LightCraft, preferences and tuning, and resumes if interrupted.
+
 > **Status: early version.** The plugin is built; the first real setup on a user's Mac is next. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for progress.
 
 ---
