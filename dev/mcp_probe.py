@@ -4,7 +4,8 @@
 Usage:
   dev/mcp_probe.py [--out DIR] -- <server command...>  < steps.jsonl
 
-Each stdin line is {"tool": name, "args": {...}}. Text results are printed;
+Each stdin line is {"tool": name, "args": {...}, "pick"?: [top-level keys]}.
+Text results are printed (only the picked keys, when given);
 image results are saved to --out as <step>.<ext>.
 """
 import base64
@@ -65,6 +66,9 @@ def main():
         for item in result.get("content", []):
             if item["type"] == "text":
                 text = item["text"]
+                if "pick" in req:
+                    data = json.loads(text)
+                    text = json.dumps({k: data.get(k) for k in req["pick"]}, indent=1)
                 print(text if len(text) < 1500 else text[:1500] + " …")
             elif item["type"] == "image":
                 ext = item["mimeType"].split("/")[-1]
