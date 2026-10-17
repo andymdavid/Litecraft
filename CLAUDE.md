@@ -25,7 +25,8 @@ Work against the phases in IMPLEMENTATION.md and tick items off as they're verif
 - **No client photos in git.** `Samples/` and `vendor/` are gitignored; keep it that way.
 - **Connect mode only.** The plugin's MCP server always uses `lightcraft-cli mcp --connect`. Never configure a headless `--library` server in the plugin — it would hold the library lock for the whole session and block the desktop app.
 - **Stdlib-only Python** in `plugin/scripts/` — the user's Mac has no pip packages.
-- **User data lives in `~/LiteCraft`** (override with `LITECRAFT_HOME` for testing). Never write user state into the plugin directory.
+- **User data lives in `~/LiteCraft`** (override with `LITECRAFT_HOME` for testing); the LightCraft library is at LightCraft's default, `~/Pictures/LightCraft Library`. Never write user state into the plugin directory.
+- **Skills call scripts unquoted at their full `${CLAUDE_PLUGIN_ROOT}` path** so they match the allow rules `lc.py permissions sync` writes.
 - Mark unverified LightCraft behaviour **(verify)** in docs until tested.
 
 ## Dev setup
@@ -37,11 +38,11 @@ git clone --depth 1 https://github.com/storytold/lightcraft vendor/lightcraft
 cd vendor/lightcraft && cargo build --release -p lightcraft -p lightcraft-cli
 ```
 
-Dry-run the plugin against it with a scratch home:
+Dry-run the plugin against it with a scratch home (always pass `--library` — the default is the real `~/Pictures/LightCraft Library`):
 
 ```sh
 export LITECRAFT_HOME=/tmp/litecraft-home
-plugin/scripts/lc.py env init --cli vendor/lightcraft/target/release/lightcraft-cli --app vendor/lightcraft/target/release/lightcraft
+plugin/scripts/lc.py env init --cli vendor/lightcraft/target/release/lightcraft-cli --app vendor/lightcraft/target/release/lightcraft --library /tmp/litecraft-home/Library
 plugin/bin/litecraft-app start
 ```
 
