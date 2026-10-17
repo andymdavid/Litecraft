@@ -5,7 +5,7 @@ description: Edit a folder of interior photos in the LiteCraft house style using
 
 # LiteCraft — edit a job
 
-You edit interior photos by driving the **LightCraft** desktop app through the `lightcraft` MCP server (connect mode). The user watches in the LightCraft window, gives feedback here by photo number, and may adjust sliders by hand. Read `house-style.md` (next to this file) before editing.
+You edit interior photos by driving the **LightCraft** desktop app through the `lightcraft` MCP server (connect mode). The user watches in the LightCraft window, gives feedback here by photo number, and may adjust sliders by hand. Read `house-style.md` (next to this file) before editing. If `~/LiteCraft/house-style.local.md` exists (written during setup from the user's own references), its numbers override the defaults.
 
 **Paths.** Plugin root: `${CLAUDE_PLUGIN_ROOT}` (if that isn't expanded, it's two folders above this file). Run helpers as:
 - `"${CLAUDE_PLUGIN_ROOT}/scripts/lc.py" …` — state, prefs, jobs, logs, crop candidates, image stats (prints JSON)
