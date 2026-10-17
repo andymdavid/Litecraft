@@ -21,7 +21,7 @@ You never have to touch a slider unless you want to.
 - The **Claude desktop app**, signed in with a **Claude Pro or Max** plan (Max recommended for large shoots)
 - Space for your photos — see [Disk space](#disk-space)
 
-LightCraft and the LiteCraft plugin are installed for you during setup.
+LightCraft (the photo editor) and the LiteCraft plugin are installed for you during setup — you don't need to download anything yourself.
 
 Currently tuned for a **Canon EOS M50** with a **Sigma 30mm F1.4** lens. Other cameras work too; colours just need a little more adjusting until LiteCraft has learned that camera.
 
@@ -54,7 +54,7 @@ Type:
 
 Claude:
 
-1. **Installs LightCraft**, the photo editor LiteCraft uses. It asks before downloading.
+1. **Installs LightCraft**, the photo editor LiteCraft uses. It asks before downloading, then puts it in your **Applications** folder — so it's in **Launchpad** like any other app.
 2. **Offers to stop the permission questions** for LiteCraft's own tools — see below.
 3. **Asks how you like things** — crop shape, export size and so on (see [The questions Claude asks](#the-questions-claude-asks)).
 
