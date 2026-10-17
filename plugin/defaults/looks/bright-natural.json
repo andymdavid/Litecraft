@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "name": "bright-natural",
+  "label": "LiteCraft · Bright Natural",
+  "description": "Bright, clean and natural: neutral-to-warm whites, lifted shadows with true blacks, held highlights, moderate vibrance, gentle contrast and a touch of clarity.",
+  "status": "seed",
+  "seed_source": "Judged by eye from two Lightroom before/after screenshots (living room, tabletop). Refine during initialisation from the user's own pairs.",
+  "groups": ["light", "color", "effects"],
+  "settings": {
+    "light": { "exposure": 0.0, "contrast": 5, "highlights": -30, "shadows": 25, "whites": 10, "blacks": -5 },
+    "color": { "vibrance": 15, "saturation": 0 },
+    "effects": { "clarity": 8, "texture": 5, "dehaze": 0 }
+  },
+  "per_image": ["light.exposure", "wb.temp", "wb.tint"],
+  "notes": "The light group includes exposure, so applying this preset resets exposure to 0. Apply the look first, then set exposure and white balance per photo."
+}
