@@ -1,6 +1,10 @@
 ---
 name: edit
 description: Edit a folder of interior photos in the LiteCraft house style using LightCraft — import, straighten, crop, tone and colour, label, then live review in the LightCraft app and export. Use when the user asks to edit, process or retouch a shoot or a folder of photos, continue a LiteCraft job, change a photo by number ("#12 is too warm"), or export a job.
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/lc.py *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/litecraft-app *)
+  - mcp__plugin_litecraft_lightcraft__*
 ---
 
 # LiteCraft — edit a job
@@ -8,16 +12,19 @@ description: Edit a folder of interior photos in the LiteCraft house style using
 You edit interior photos by driving the **LightCraft** desktop app through the `lightcraft` MCP server (connect mode). The user watches in the LightCraft window, gives feedback here by photo number, and may adjust sliders by hand. Read `house-style.md` (next to this file) before editing. If `~/LiteCraft/house-style.local.md` exists (written during setup from the user's own references), its numbers override the defaults.
 
 **Paths.** Plugin root: `${CLAUDE_PLUGIN_ROOT}` (if that isn't expanded, it's two folders above this file). Run helpers as:
-- `"${CLAUDE_PLUGIN_ROOT}/scripts/lc.py" …` — state, prefs, jobs, logs, crop candidates, image stats (prints JSON)
-- `"${CLAUDE_PLUGIN_ROOT}/bin/litecraft-app" start|status|front` — the LightCraft app
+- `${CLAUDE_PLUGIN_ROOT}/scripts/lc.py …` — state, prefs, jobs, logs, crop candidates, image stats (prints JSON)
+- `${CLAUDE_PLUGIN_ROOT}/bin/litecraft-app start|restart|status|front` — the LightCraft app
+
+Run these exactly as shown — full path, **no quotes**, no `cd` or `&&` in front — so they match LiteCraft's permission rules and run without asking. Wherever this skill says `lc.py` or `litecraft-app`, it means these full paths.
 
 **Talk to the user in plain, friendly language.** They are not technical. Don't show JSON, file paths or tool names unless asked.
 
 ## 0. Before anything
 
 1. `lc.py setup status`. If `install_lightcraft` or `preferences` isn't `done`, stop and say setup is needed first — offer to run it (`/litecraft:setup`). Other unfinished steps (camera profile, lens, look, test job) don't block editing, but mention once that results improve after them.
-2. `lc.py prefs missing`. Ask only those questions (use each question's text and `explain`), save each with `lc.py prefs set KEY VALUE`. Don't re-ask anything already answered.
-3. `litecraft-app start`. If it reports LightCraft is open without remote control, ask the user to quit LightCraft (⌘Q) and retry. If the `lightcraft` MCP tools are unavailable, ask the user to run `/mcp` and reconnect `lightcraft` (or restart the session).
+2. `lc.py permissions show`. If setup's `permissions` step was `done` with note `allowed` and `in_sync` is false (the plugin was updated), run `lc.py permissions sync` — no need to ask again.
+3. `lc.py prefs missing`. Ask only those questions (use each question's text and `explain`), save each with `lc.py prefs set KEY VALUE`. Don't re-ask anything already answered.
+4. `litecraft-app start`. If it reports LightCraft is open without remote control (the user opened it from the Dock), ask: "LightCraft is already open — OK if I reopen it so I can work in it? Nothing will be lost." On yes, `litecraft-app restart`. If the `lightcraft` MCP tools are unavailable, ask the user to run `/mcp` and reconnect `lightcraft` (or restart the session).
 
 ## 1. Start or resume a job
 
@@ -33,6 +40,8 @@ You edit interior photos by driving the **LightCraft** desktop app through the `
      - If macOS asks for permission to access a folder (Desktop, Documents, Downloads, a memory card), tell the user to click **Allow** — for LightCraft and for Claude.
   5. MCP `run_command library.source {kind: "album", id: ID}` (also shows the job's album in the LightCraft window), then `query_photos {limit: 1000}` → for each photo: `lc.py job add-photos NAME --json '[{"lc_id":…, "file":…, "orientation": "landscape"|"portrait"}]'` (landscape when width > height). Number photos in file-name order.
   6. Tell the user how many photos you found and that you're starting; mention they can watch in LightCraft.
+
+**"Open LightCraft"** (or "show me the photos"): `litecraft-app start`, then `litecraft-app front`, and if a job is in progress `run_command library.source {kind: "album", id}` to show it.
 
 ## 2. Edit each photo
 
