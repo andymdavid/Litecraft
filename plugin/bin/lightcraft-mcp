@@ -20,4 +20,5 @@ if [[ -z "$CLI" ]]; then
   exit 1
 fi
 
-exec "$CLI" mcp --connect "127.0.0.1:${LITECRAFT_PORT:-7980}"
+# --compact: the ~28 helper tools only (vs ~600, one per command); run_command reaches the rest.
+exec "$CLI" mcp --compact --connect "127.0.0.1:${LITECRAFT_PORT:-7980}"
