@@ -3,6 +3,8 @@
 #
 #   litecraft-app start    open LightCraft on the LiteCraft library with remote control on
 #                          (no-op if it's already listening); waits until it's ready
+#   litecraft-app restart  quit LightCraft if it's open without remote control, then start
+#                          (ask the user first — e.g. they opened it from the Dock)
 #   litecraft-app status   is it running, and is remote control on?
 #   litecraft-app front    bring the app window to the front
 #
@@ -35,7 +37,7 @@ case "${1:-status}" in
       exit 0
     fi
     if app_running; then
-      json "\"ready\": false, \"error\": \"LightCraft is open without remote control. Ask the user to quit LightCraft (Cmd+Q), then run start again.\""
+      json "\"ready\": false, \"control\": false, \"error\": \"LightCraft is open without remote control (probably opened from the Dock). Ask the user if it is OK to reopen it, then run restart.\""
       exit 1
     fi
     if [[ ! -e "$APP" ]]; then
@@ -58,12 +60,28 @@ case "${1:-status}" in
     json "\"ready\": false, \"error\": \"LightCraft did not start listening on port $PORT within 60s.\""
     exit 1
     ;;
+  restart)
+    if listening; then
+      json "\"ready\": true, \"started\": false, \"port\": $PORT"
+      exit 0
+    fi
+    if app_running; then
+      # LightCraft saves continuously (crash-safe library), so a normal quit loses nothing.
+      if [[ "$APP" == *.app ]]; then osascript -e 'tell application "LightCraft" to quit' >/dev/null 2>&1; else pkill -TERM -x lightcraft; fi
+      for _ in $(seq 1 40); do app_running || break; sleep 0.5; done
+      if app_running; then
+        json "\"ready\": false, \"error\": \"LightCraft didn't quit. Ask the user to quit it (Cmd+Q).\""
+        exit 1
+      fi
+    fi
+    exec "$0" start
+    ;;
   front)
     if [[ "$APP" == *.app ]]; then open -a "$APP"; else osascript -e 'tell application "System Events" to set frontmost of (first process whose name is "lightcraft") to true' >/dev/null 2>&1; fi
     json "\"front\": true"
     ;;
   *)
-    echo "usage: litecraft-app start|status|front" >&2
+    echo "usage: litecraft-app start|restart|status|front" >&2
     exit 2
     ;;
 esac
