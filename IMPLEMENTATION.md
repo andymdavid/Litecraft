@@ -80,6 +80,8 @@ Everything the user owns lives outside the plugin, so plugin updates never touch
 ├── setup.json             # which initialisation steps are done (resumable)
 ├── preferences.json       # the user's answers
 ├── Library/               # the LightCraft library (one for all jobs)
+├── Shoots/<shoot>/        # recommended home for originals; memory cards, Downloads, Desktop,
+│                          # Documents and iCloud Drive are copied here (lc.py source decides)
 ├── presets/               # exported .lcpreset backups of camera/lens/look presets
 ├── references/            # the user's before/after pairs used to derive the look
 └── Jobs/<job-name>/
@@ -315,5 +317,6 @@ Only if LightCraft proves too complex for the user: a read-only localhost web pa
 | 2026-10-17 | Crop after geometry, before tone | Tone judged on the delivered frame |
 | 2026-10-17 | Crop ratio + export spec are user preferences | User's call; stored outside the plugin; changeable in chat |
 | 2026-10-17 | All tuning against the user's photos happens in an initialisation run on their Mac | Their files stay local; one setup skill makes it repeatable and obvious |
+| 2026-10-17 | Shoots live in `~/LiteCraft/Shoots`; risky locations are copied there, never moved | Imports reference originals in place, so they must stay put; Shoots avoids iCloud eviction and macOS folder-permission prompts |
 | 2026-10-17 | Helper scripts are Python stdlib only | No pip installs on the user's Mac |
 | 2026-10-17 | Kit: Canon M50 + Sigma 30mm F1.4 DC DN | M50 CR3/C-RAW listed as exact in LightCraft; low-distortion prime |
