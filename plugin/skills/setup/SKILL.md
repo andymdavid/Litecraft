@@ -66,6 +66,8 @@ shasum -a 256 -c SHA256SUMS.txt --ignore-missing      # both must say OK — sto
 - `lc.py env check` → must be `ok` with version `lightcraft-cli 0.8.0`.
 - `litecraft-app start` → the LightCraft window opens on the LiteCraft library (LightCraft's default location, `~/Pictures/LightCraft Library`, so it's the same library if the user later opens LightCraft from the Dock).
 - **Connect Claude to it:** the `lightcraft` MCP server only finds LightCraft once installed. Ask the user to type `/mcp` and reconnect **lightcraft** (or restart this Claude session — setup will resume where it left off). Confirm with the MCP `doc_inspect` tool.
+- **Demo photos.** If the user opened LightCraft before setup, its library was created with 24 built-in demo photos. MCP `query_photos {limit: 1000}` → photos whose `camera` starts with `Synthetic` are those demos. If any, offer: "LightCraft added some sample photos when it was first opened — shall I remove them?" On yes, `run_command photo.delete {ids: [...]}` (moves them to LightCraft's Recently Deleted).
+- Tell the user: "LightCraft is now installed — you'll find it in Launchpad and your Applications folder. You don't need to open it yourself (I'll open it when needed), but you can any time; it shows the same photos."
 - Remove `~/LiteCraft/downloads` once everything works.
 
 ## 3. `permissions`
