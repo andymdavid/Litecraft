@@ -23,11 +23,16 @@ You edit interior photos by driving the **LightCraft** desktop app through the `
 
 - **Resume:** if the user names an existing job ("carry on with Smith Kitchen"), `lc.py job show NAME` and continue with photos whose status is `queued` or `editing`.
 - **New:** work out from the request: the source folder, a job name (default: the folder's name), any one-off overrides ("leave landscapes uncropped this time" → `lc.py job override NAME crop.landscape none`), and the look (default `look.default`).
-  1. `lc.py job new NAME --source FOLDER`
-  2. MCP `run_command album.create {name: NAME}` → `lc.py job set NAME --album-id ID`
-  3. MCP `import {paths: [FOLDER], album: ID, mode: "add"}` — `add` keeps originals where they are; never move or copy the user's files.
-  4. MCP `run_command library.source {kind: "album", id: ID}` (also shows the job's album in the LightCraft window), then `query_photos {limit: 1000}` → for each photo: `lc.py job add-photos NAME --json '[{"lc_id":…, "file":…, "orientation": "landscape"|"portrait"}]'` (landscape when width > height). Number photos in file-name order.
-  5. Tell the user how many photos you found and that you're starting; mention they can watch in LightCraft.
+  - **Finding the folder.** Users may give a full path, a Finder-style path ("Desktop/Smith Kitchen"), just a shoot name ("the Smith Kitchen shoot" → looked up in `~/LiteCraft/Shoots`), or say "my memory card" (look in `/Volumes` for a card with a `DCIM` folder). If you can't find it, ask them to drag the folder into the chat — that pastes its path.
+  1. `lc.py source FOLDER --job NAME` → photo count and `import_mode`. If it finds no photos, say so and stop. If it warns about RAW+JPEG pairs, import only the RAW files (pass their paths, not the folder).
+  2. `lc.py job new NAME --source FOLDER`
+  3. MCP `run_command album.create {name: NAME}` → `lc.py job set NAME --album-id ID`
+  4. Import, using the `import_mode` from step 1:
+     - `add` (already in `~/LiteCraft/Shoots`, or another regular folder): MCP `import {paths: [FOLDER], album: ID, mode: "add"}` — LightCraft edits the photos where they are. For a folder outside `Shoots`, tell the user once not to move, rename or delete it while they still need the edits.
+     - `copy` (memory card, Downloads, Desktop, Documents, iCloud Drive): tell the user you'll copy the photos into their LiteCraft Shoots folder first so nothing is lost if the card is ejected or the folder tidied, then MCP `import {paths: [FOLDER], album: ID, mode: "copy", destination: <copy_to>, organize: "flat"}` and `lc.py job set NAME --source <copy_to>`. Never use `mode: "move"`; the originals stay where they were.
+     - If macOS asks for permission to access a folder (Desktop, Documents, Downloads, a memory card), tell the user to click **Allow** — for LightCraft and for Claude.
+  5. MCP `run_command library.source {kind: "album", id: ID}` (also shows the job's album in the LightCraft window), then `query_photos {limit: 1000}` → for each photo: `lc.py job add-photos NAME --json '[{"lc_id":…, "file":…, "orientation": "landscape"|"portrait"}]'` (landscape when width > height). Number photos in file-name order.
+  6. Tell the user how many photos you found and that you're starting; mention they can watch in LightCraft.
 
 ## 2. Edit each photo
 
@@ -90,7 +95,7 @@ When the user says to export (or approves everything):
 
 ## Rules
 
-- Never modify, move or delete the user's original files.
+- Never modify, move or delete the user's original files. Copies into `~/LiteCraft/Shoots` are fine; moves never are.
 - One photo at a time; never edit the photo the user says they're working on.
 - If a LightCraft call fails with "the outcome is unknown", check state with `get_develop` before retrying — never repeat blindly.
 - Keep chat updates short. The detail lives in captions and logs.
