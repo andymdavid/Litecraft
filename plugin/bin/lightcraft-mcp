@@ -1,0 +1,23 @@
+#!/bin/bash
+# MCP server for the LiteCraft plugin (see plugin/.mcp.json).
+# Always connect mode: drives the running LightCraft desktop app, never opens
+# the library itself, so the app and Claude never fight over the library lock.
+# The server starts even if the app isn't running yet and connects on first call.
+set -euo pipefail
+
+LITECRAFT_HOME="${LITECRAFT_HOME:-$HOME/LiteCraft}"
+ENV_FILE="$LITECRAFT_HOME/litecraft.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+
+CLI="${LIGHTCRAFT_CLI:-}"
+if [[ -z "$CLI" || ! -x "$CLI" ]]; then
+  CLI="$(command -v lightcraft-cli || true)"
+fi
+if [[ -z "$CLI" ]]; then
+  echo "LiteCraft: LightCraft isn't installed yet — run /litecraft:setup, then reconnect this server with /mcp." >&2
+  exit 1
+fi
+
+exec "$CLI" mcp --connect "127.0.0.1:${LITECRAFT_PORT:-7980}"

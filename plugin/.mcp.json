@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lightcraft": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/lightcraft-mcp",
+      "args": []
+    }
+  }
+}
