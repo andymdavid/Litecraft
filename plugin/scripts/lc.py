@@ -9,10 +9,11 @@ Every command prints JSON on stdout; errors go to stderr with exit status 1.
   lc.py env show | env check
   lc.py setup status | setup done STEP [--note TEXT] | setup skip STEP [--note TEXT] | setup reset STEP
   lc.py prefs show | prefs get KEY | prefs set KEY VALUE | prefs missing | prefs questions
+  lc.py source PATH_OR_SHOOT_NAME [--job NAME]   photo count + whether to edit in place or copy first
   lc.py job new NAME --source DIR | job list | job show NAME
   lc.py job add-photos NAME --json '[{"lc_id":..,"file":..,"orientation":..}, ...]'
   lc.py job photo NAME N [--status S] [--slug S] [--iterations N] [--flag-reason TEXT] [--lc-id N]
-  lc.py job set NAME [--stage S] [--album-id N]
+  lc.py job set NAME [--stage S] [--album-id N] [--source DIR]
   lc.py job override NAME KEY VALUE | job resolve NAME KEY
   lc.py log add NAME N --json ENTRY | log show NAME N
   lc.py crop --width W --height H --aspect 4:5|5:4|none
@@ -73,6 +74,7 @@ def paths():
         "presets": os.path.join(h, "presets"),
         "references": os.path.join(h, "references"),
         "jobs": os.path.join(h, "Jobs"),
+        "shoots": os.path.join(h, "Shoots"),
         "bin": os.path.join(h, "bin"),
         "plugin_root": PLUGIN_ROOT,
         "default_preferences": os.path.join(PLUGIN_ROOT, "defaults", "preferences.json"),
@@ -152,7 +154,7 @@ def cmd_env(a):
             for k, v in env.items():
                 f.write(f'{k}="{v}"\n')
         os.replace(tmp, p["env"])
-        for d in ("jobs", "presets", "references"):
+        for d in ("jobs", "shoots", "presets", "references"):
             os.makedirs(p[d], exist_ok=True)
         out(env)
     elif a.action == "show":
@@ -257,6 +259,70 @@ def cmd_prefs(a):
         out(missing)
 
 
+# ---------------------------------------------------------------- source folders
+
+PHOTO_EXTS = {".cr3", ".cr2", ".dng", ".arw", ".nef", ".raf", ".rw2", ".orf", ".pef",
+              ".jpg", ".jpeg", ".tif", ".tiff", ".png", ".heic", ".webp"}
+RAW_EXTS = {".cr3", ".cr2", ".dng", ".arw", ".nef", ".raf", ".rw2", ".orf", ".pef"}
+
+
+def classify_source(path):
+    """Where a shoot folder lives decides whether LightCraft edits it in place or copies it first.
+
+    In-place ("add") references the originals, so they must stay put. Memory cards, Downloads,
+    Desktop, Documents and iCloud Drive are copied into ~/LiteCraft/Shoots/<job>: cards get
+    ejected, Downloads gets cleared, and Desktop/Documents may be iCloud-synced (files can be
+    evicted to the cloud) and are privacy-protected folders on macOS.
+    """
+    real = os.path.realpath(path)
+    user_home = os.path.realpath(os.path.expanduser("~"))
+    shoots = os.path.realpath(paths()["shoots"])
+    if real == shoots or real.startswith(shoots + os.sep):
+        return "shoots", "add", "Already in the LiteCraft Shoots folder."
+    if real == "/Volumes" or real.startswith("/Volumes/"):
+        return "removable", "copy", "On a memory card or external drive — copy it to the Mac first."
+    icloud = os.path.join(user_home, "Library", "Mobile Documents")
+    if real.startswith(icloud + os.sep):
+        return "icloud", "copy", "In iCloud Drive — files may only be stored in the cloud."
+    for name in ("Downloads", "Desktop", "Documents"):
+        base = os.path.join(user_home, name)
+        if real == base or real.startswith(base + os.sep):
+            return name.lower(), "copy", f"In {name} — may be iCloud-synced or cleared; copy for safety."
+    return "local", "add", "A regular folder on this Mac — edit in place; don't move or rename it afterwards."
+
+
+def cmd_source(a):
+    path = os.path.abspath(os.path.expanduser(a.path))
+    if not os.path.isdir(path):
+        # A bare shoot name: look in Shoots.
+        candidate = os.path.join(paths()["shoots"], a.path)
+        if os.path.isdir(candidate):
+            path = candidate
+        else:
+            fail(f"no folder at {path} (and no shoot named {a.path!r} in {paths()['shoots']})")
+    counts, total, raws = {}, 0, 0
+    for root, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        for f in files:
+            ext = os.path.splitext(f)[1].lower()
+            if ext in PHOTO_EXTS and not f.startswith("._"):
+                counts[ext] = counts.get(ext, 0) + 1
+                total += 1
+                raws += ext in RAW_EXTS
+    kind, mode, why = classify_source(path)
+    result = {"path": path, "kind": kind, "import_mode": mode, "why": why,
+              "photos": total, "raw": raws, "by_type": counts}
+    if mode == "copy":
+        name = a.job or os.path.basename(path.rstrip(os.sep)) or "Shoot"
+        result["copy_to"] = os.path.join(paths()["shoots"], name)
+        result["copy_exists"] = os.path.exists(result["copy_to"])
+    if total == 0:
+        result["warning"] = "No photos found in this folder."
+    elif raws and raws < total:
+        result["warning"] = "Mixed RAW and JPEG files — likely RAW+JPEG pairs; import only the RAWs."
+    out(result)
+
+
 # ---------------------------------------------------------------- jobs
 
 def job_dir(name):
@@ -336,8 +402,10 @@ def cmd_job(a):
             job["stage"] = a.stage
         if a.album_id is not None:
             job["album_id"] = a.album_id
+        if a.source:
+            job["source"] = os.path.abspath(os.path.expanduser(a.source))
         save_job(job)
-        out({k: job[k] for k in ("name", "stage", "album_id")})
+        out({k: job[k] for k in ("name", "stage", "album_id", "source")})
     elif a.action == "override":
         job = load_job(a.name)
         job["overrides"][a.key] = parse_value(a.value)
@@ -549,6 +617,11 @@ def main():
     p.add_argument("key", nargs="?")
     p.add_argument("value", nargs="?")
     p.set_defaults(fn=cmd_prefs)
+
+    so = sub.add_parser("source")
+    so.add_argument("path")
+    so.add_argument("--job")
+    so.set_defaults(fn=cmd_source)
 
     j = sub.add_parser("job")
     j.add_argument("action", choices=["new", "list", "show", "add-photos", "photo", "set", "override", "resolve"])
