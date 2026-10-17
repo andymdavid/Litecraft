@@ -9,6 +9,7 @@ Every command prints JSON on stdout; errors go to stderr with exit status 1.
   lc.py env show | env check
   lc.py setup status | setup done STEP [--note TEXT] | setup skip STEP [--note TEXT] | setup reset STEP
   lc.py prefs show | prefs get KEY | prefs set KEY VALUE | prefs missing | prefs questions
+  lc.py permissions show|sync|remove [--settings FILE]   LiteCraft's allow rules in Claude Code settings
   lc.py source PATH_OR_SHOOT_NAME [--job NAME]   photo count + whether to edit in place or copy first
   lc.py job new NAME --source DIR | job list | job show NAME
   lc.py job add-photos NAME --json '[{"lc_id":..,"file":..,"orientation":..}, ...]'
@@ -35,6 +36,7 @@ DEFAULT_PORT = 7980
 SETUP_STEPS = [
     "preflight",
     "install_lightcraft",
+    "permissions",
     "preferences",
     "camera_profile",
     "lens",
@@ -258,6 +260,54 @@ def cmd_prefs(a):
             except KeyError:
                 missing.append(q)
         out(missing)
+
+
+# ---------------------------------------------------------------- Claude Code permissions
+
+MCP_RULE = "mcp__plugin_litecraft_lightcraft__*"
+
+
+def permission_rules():
+    """Exact rules for LiteCraft's own scripts at this plugin version, plus LightCraft's tools.
+
+    The plugin path contains its version, so rules are rewritten after an update (sync) rather
+    than using a wildcard in the program position, which would match more than intended.
+    """
+    return [
+        MCP_RULE,
+        f"Bash({os.path.join(PLUGIN_ROOT, 'scripts', 'lc.py')} *)",
+        f"Bash({os.path.join(PLUGIN_ROOT, 'bin', 'litecraft-app')} *)",
+        "Read(~/LiteCraft/**)",
+    ]
+
+
+def is_litecraft_rule(rule):
+    return (rule in (MCP_RULE, "Read(~/LiteCraft/**)")
+            or (rule.startswith("Bash(") and rule.endswith(("/scripts/lc.py *)", "/bin/litecraft-app *)"))))
+
+
+def cmd_permissions(a):
+    path = os.path.expanduser(a.settings or "~/.claude/settings.json")
+    settings = read_json(path, {})
+    allow = settings.get("permissions", {}).get("allow", [])
+    wanted = permission_rules()
+    current = [r for r in allow if is_litecraft_rule(r)]
+    if a.action == "show":
+        out({"settings": path, "wanted": wanted, "present": current,
+             "in_sync": sorted(current) == sorted(wanted)})
+        return
+    others = [r for r in allow if not is_litecraft_rule(r)]
+    new_allow = others + (wanted if a.action == "sync" else [])
+    if new_allow == allow:
+        out({"settings": path, "changed": False, "rules": current})
+        return
+    if os.path.exists(path) and not os.path.exists(path + ".litecraft-backup"):
+        with open(path) as src, open(path + ".litecraft-backup", "w") as dst:
+            dst.write(src.read())
+    settings.setdefault("permissions", {})["allow"] = new_allow
+    write_json(path, settings)
+    out({"settings": path, "changed": True, "removed": [r for r in current if r not in new_allow],
+         "added": [r for r in new_allow if r not in allow]})
 
 
 # ---------------------------------------------------------------- source folders
@@ -618,6 +668,11 @@ def main():
     p.add_argument("key", nargs="?")
     p.add_argument("value", nargs="?")
     p.set_defaults(fn=cmd_prefs)
+
+    pm = sub.add_parser("permissions")
+    pm.add_argument("action", choices=["show", "sync", "remove"])
+    pm.add_argument("--settings")
+    pm.set_defaults(fn=cmd_permissions)
 
     so = sub.add_parser("source")
     so.add_argument("path")
