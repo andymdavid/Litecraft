@@ -241,9 +241,12 @@ Verified against LightCraft **0.8.0** (commit `f34c7a8`) with `dev/mcp_probe.py`
 Moved to initialisation (needs the user's files): CR3 decode on real files, M50 profile, lens vignetting, colour vs. finals, look matching, quality and usage measurement.
 
 Still to check on the dev machine:
-- [ ] `crop` with a 4:5 rect is honoured by export
+- [x] `crop` rect is honoured by export (rects must be computed from each photo's real pixel size)
 - [ ] How the caption renders in the app's info panel
-- [ ] `geometry.upright` via `run_command` in connect mode
+- [x] `geometry.upright {mode: auto}` via `run_command` in connect mode
+- [x] Presets: `preset.create` (groups `light`, `color`, `effects`, …), `apply_preset`, `preset.export`/`import`; presets are stored in the library (`presets.json`)
+- [x] Albums: `import {album}` adds to an album; `library.source {kind: album, id}` scopes `query_photos` and the app view
+- [x] New libraries need `--no-demo` or LightCraft seeds 24 demo photos
 
 ---
 
@@ -251,17 +254,17 @@ Still to check on the dev machine:
 
 **Goal:** a plugin another Claude Code instance can install and run setup from.
 
-- [ ] `CLAUDE.md` orientation
-- [ ] Marketplace + plugin manifests; `claude plugin validate` passes
-- [ ] `bin/lightcraft-mcp`, `bin/litecraft-app`, `.mcp.json`
-- [ ] `scripts/lc.py`: paths, env, prefs, setup state, jobs, logs, crop candidates, image stats
-- [ ] `defaults/preferences.json`, `defaults/looks/bright-natural.json`
-- [ ] `skills/setup/SKILL.md`
-- [ ] `skills/edit/SKILL.md` + `house-style.md`
-- [ ] Dry run on the dev machine against the vendored build with `LITECRAFT_HOME` pointed at a scratch folder
-- [ ] README updated for the real install flow
+- [x] `CLAUDE.md` orientation
+- [x] Marketplace + plugin manifests; `claude plugin validate` passes
+- [x] `bin/lightcraft-mcp` (connect + `--compact`: 28 tools / 24 KB vs 595 / 291 KB), `bin/litecraft-app`, `.mcp.json`
+- [x] `scripts/lc.py`: paths, env, prefs, setup state, jobs, logs (validated), crop candidates, image stats — runs on macOS system Python 3.9
+- [x] `defaults/preferences.json`, `defaults/looks/bright-natural.json`
+- [x] `skills/setup/SKILL.md` (release download + checksums verified in scratch; not yet run end to end)
+- [x] `skills/edit/SKILL.md` + `house-style.md`
+- [x] Dry run: headless `claude -p --plugin-dir ./plugin` ran `/litecraft:edit` on 2 test images end to end — 71 turns, ~3 min, ~$1.5 usage-equivalent (~$0.75 / photo). Correct 4:5 crop, upright, labels, captions, export; flagged the heavy landscape crop. Found and fixed: free-text change logs (now validated). Noted: it cooled a warm vignette where the editor's final went warmer — expected to be corrected by the look step in setup
+- [x] README updated for the real install flow
 
-**Exit:** `claude plugin validate` passes; a scratch-home dry run of setup steps 1–3 and a 1-photo job works here.
+**Exit:** `claude plugin validate` passes; a scratch-home edit job works end to end here. ✅ Remaining before handover: run the setup skill's install step on a clean Mac (or user account), and install the plugin from the GitHub marketplace rather than `--plugin-dir`.
 
 ---
 
