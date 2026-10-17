@@ -1,0 +1,15 @@
+{
+  "name": "litecraft",
+  "description": "LiteCraft \u2014 agent-driven interior photo editing with LightCraft.",
+  "owner": {
+    "name": "andymdavid"
+  },
+  "plugins": [
+    {
+      "name": "litecraft",
+      "source": "./plugin",
+      "description": "Edit interior photos by chatting with Claude, driving the LightCraft editor.",
+      "version": "0.1.0"
+    }
+  ]
+}

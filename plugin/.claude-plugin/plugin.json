@@ -1,0 +1,8 @@
+{
+  "name": "litecraft",
+  "version": "0.1.0",
+  "description": "Edit interior photos by chatting with Claude. Drives the LightCraft desktop editor over MCP: house-style edits, 4:5 crops, status labels, and live review where the user can fine-tune by hand.",
+  "author": { "name": "andymdavid" },
+  "repository": "https://github.com/andymdavid/Litecraft",
+  "keywords": ["photography", "photo-editing", "lightcraft", "interior-design"]
+}
