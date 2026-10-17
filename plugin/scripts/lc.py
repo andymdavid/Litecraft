@@ -350,12 +350,45 @@ def cmd_job(a):
 
 # ---------------------------------------------------------------- logs
 
+LOG_SOURCES = ("preset", "agent", "feedback", "user-tweak")
+LOG_ENTRY_EXAMPLE = {
+    "source": "agent",
+    "changes": [{"control": "light.exposure", "from": 0.0, "to": 0.75, "reason": "Room ~1 stop dark; midtones 58 vs target 72-80"}],
+    "feedback": None,
+    "settings_after": {"light": {}, "wb": {}, "color": {}, "effects": {}, "crop": {}, "geometry": {}},
+}
+
+
+def validate_entry(entry):
+    """Changes must be structured so user tweaks and recurring corrections can be compared later."""
+    problems = []
+    if not isinstance(entry, dict):
+        return ["entry must be a JSON object"]
+    if entry.get("source") not in LOG_SOURCES:
+        problems.append(f"source must be one of {list(LOG_SOURCES)}")
+    changes = entry.get("changes")
+    if not isinstance(changes, list):
+        problems.append("changes must be a list")
+    else:
+        for i, c in enumerate(changes):
+            if not isinstance(c, dict):
+                problems.append(f"changes[{i}] must be an object, not {type(c).__name__}")
+            elif not c.get("control") or "to" not in c or not c.get("reason"):
+                problems.append(f"changes[{i}] needs control, to and reason")
+    if not isinstance(entry.get("settings_after"), dict):
+        problems.append("settings_after must be the develop settings after this pass")
+    return problems
+
+
 def cmd_log(a):
     load_job(a.name)
     path = os.path.join(job_dir(a.name), "log", f"{a.n}.json")
     log = read_json(path, {"schema": 1, "n": a.n, "entries": []})
     if a.action == "add":
         entry = json.loads(a.json)
+        problems = validate_entry(entry)
+        if problems:
+            fail("log entry rejected: " + "; ".join(problems) + "\nexpected: " + json.dumps(LOG_ENTRY_EXAMPLE))
         entry.setdefault("at", now())
         log["entries"].append(entry)
         write_json(path, log)
