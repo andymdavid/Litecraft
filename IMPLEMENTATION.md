@@ -5,35 +5,32 @@ See [VISION.md](VISION.md) for the why. This document is the how, in phases we w
 > Status markers: `[ ]` todo · `[x]` done · `[~]` in progress.
 > Facts about LightCraft and Claude Code come from their docs at the time of writing and are marked **(verify)** until tested here.
 
+**Two places work happens:**
+1. **This repo (dev machine)** — build the plugin, skills and scripts. No client photos here.
+2. **The user's Mac (initialisation run)** — a Claude Code instance installs the plugin and runs the **setup skill**, which does everything that needs the user's own files: installing LightCraft, preferences, the M50 colour profile, the lens correction, deriving the look from their before/after pairs, and a test job. See [Initialisation](#initialisation-users-mac).
+
 ---
 
 ## Architecture
 
 ```
-Claude desktop app (Code tab)  ← user chats here: start jobs, give feedback
+Claude desktop app (Code tab)  ← user chats here: setup, start jobs, give feedback
   │
-  └─ LiteCraft plugin
-       ├─ skill: SKILL.md (procedure) + house-style.md (rules)
-       ├─ MCP: lightcraft-cli mcp            (two modes, below)
-       ├─ scripts: check-verticals, check-highlights, crop-suggest, job log
-       └─ presets: camera/, lens/, looks/
+  └─ LiteCraft plugin  (plugin/)
+       ├─ skills/setup   first-install initialisation (resumable)
+       ├─ skills/edit    run a job: import → edit → crop → label → review → export
+       ├─ .mcp.json      → bin/lightcraft-mcp → lightcraft-cli mcp --connect 127.0.0.1:<port>
+       ├─ bin/litecraft-app   starts LightCraft with --control <port> if not running
+       └─ scripts/lc.py  preferences, setup state, jobs, logs, crop candidates, image stats
 
-Stage A — batch edit (headless)
-  lightcraft-cli mcp --library <job>/library
-  import → preset stack → per-photo loop → 4:5 crop → status labels → log
-
-        ── hand-off: headless session ends, library lock released ──
-
-Stage B — review (desktop app, shared session)
-  lightcraft --control 7980 <job>/library          ← user inspects + tweaks
-  lightcraft-cli mcp --connect 127.0.0.1:7980      ← Claude applies feedback,
-                                                     reads user tweaks, screenshots
-  → export
+LightCraft desktop app  (always running during a job)
+  lightcraft --library ~/LiteCraft/Library --control 7980
+  ← Claude drives it over MCP (connect mode); the user watches and tweaks in the same window
 ```
 
-**Why this shape:** nothing to build for review — the user gets a real editor for subtle tinkering, and the user's tweaks become training signal. The Claude app is the job runner; the skill is the logic; LightCraft's library/XMP is the single source of truth for edits.
+**Connect mode only.** Claude Code starts a plugin's MCP servers when the session starts and keeps them running. A headless server (`mcp --library`) would hold the library lock for the whole session, so the desktop app could never open it mid-session. Instead, the skill starts the desktop app with `--control` at the beginning of a job, and the MCP server always connects to it. In connect mode the server starts even when the app isn't running yet and connects on first call, so session start never fails. No lock conflicts; the user can watch edits happen live.
 
-**Library lock (from LightCraft docs):** a library is open in one program at a time (`catalog.lock`). While the desktop app has it open, headless `--library` on the same folder fails; use connect mode instead. In connect mode Claude operates on the app's live session, so the user's edits are visible to `get_develop`. **(verify)**
+**One library, one album per job.** A single persistent library at `~/LiteCraft/Library`. Each job is an album, so the user browses jobs in LightCraft's sidebar. Presets live with the library.
 
 **Turn-taking:** Claude and the user don't edit the same photo simultaneously. The skill announces hand-backs ("done with #12 — over to you").
 
@@ -41,83 +38,82 @@ Stage B — review (desktop app, shared session)
 
 ---
 
-## Repo layout (target)
+## Repo layout
 
 ```
 LiteCraft/
+├── README.md                   # user guide
+├── CLAUDE.md                   # orientation for Claude Code instances (dev + initialisation)
 ├── VISION.md
 ├── IMPLEMENTATION.md
-├── plugin/                     # Claude Code plugin
+├── .claude-plugin/
+│   └── marketplace.json        # the repo is a plugin marketplace
+├── plugin/                     # the LiteCraft plugin
 │   ├── .claude-plugin/plugin.json
-│   ├── .mcp.json               # lightcraft-cli mcp (headless / connect)
-│   ├── skills/
-│   │   └── interior-edit/
-│   │       ├── SKILL.md        # procedure: first-run → setup → batch → hand-off → review → export
-│   │       ├── house-style.md  # measurable style + crop composition rules
-│   │       └── preferences.default.json  # defaults + the first-run questions
-│   └── scripts/
-│       ├── check_verticals.py  # OpenCV line-angle measurement
-│       ├── check_highlights.py # clipped-window / blown-area check
-│       ├── crop_suggest.py     # candidate 4:5 rects + composition scores
-│       └── job.py              # create/update job.json + logs (atomic writes)
-├── presets/
-│   ├── camera/                 # canon-m50.lcpreset (colour base)
-│   ├── lens/                   # sigma-30-f14-dcdn.lcpreset (vignette/CA)
-│   └── looks/                  # bright-natural.lcpreset, … (derived from finals)
-├── feasibility/                # Phase 0 spike: notes, results, comparisons
-└── Samples/                    # gitignored: source images + human finals
+│   ├── .mcp.json
+│   ├── bin/
+│   │   ├── lightcraft-mcp      # MCP launcher (reads ~/LiteCraft/litecraft.env)
+│   │   └── litecraft-app       # start / status of the LightCraft app with control port
+│   ├── scripts/lc.py           # stdlib-only helper CLI
+│   ├── defaults/
+│   │   ├── preferences.json    # defaults + first-run questions
+│   │   └── looks/bright-natural.json   # seed look; refined during initialisation
+│   └── skills/
+│       ├── setup/SKILL.md      # initialisation
+│       └── edit/
+│           ├── SKILL.md        # job procedure
+│           └── house-style.md  # measurable style + crop composition rules
+├── dev/                        # dev-only tools (mcp_probe.py)
+├── Samples/                    # gitignored: reference images
+└── vendor/                     # gitignored: LightCraft built from source (dev only)
 ```
 
 ---
 
-## First-run setup + preferences
+## User data (on the user's Mac)
 
-On first use (no preferences file found), the skill asks the user a short set of questions in chat, then saves the answers. Every later job reads them silently.
+Everything the user owns lives outside the plugin, so plugin updates never touch it. Root: `~/LiteCraft` (override with `LITECRAFT_HOME`).
 
-**Stored outside the plugin** so plugin updates never overwrite them:
-`~/LiteCraft/preferences.json`
+```
+~/LiteCraft/
+├── litecraft.env          # paths written by setup: LIGHTCRAFT_CLI, LIGHTCRAFT_APP, LITECRAFT_PORT, LITECRAFT_LIBRARY
+├── setup.json             # which initialisation steps are done (resumable)
+├── preferences.json       # the user's answers
+├── Library/               # the LightCraft library (one for all jobs)
+├── presets/               # exported .lcpreset backups of camera/lens/look presets
+├── references/            # the user's before/after pairs used to derive the look
+└── Jobs/<job-name>/
+    ├── job.json           # photo list + status
+    ├── log/<n>.json       # every change + reason (audit + learning)
+    └── export/            # finished photos
+```
 
-**First-run questions** (each with a recommended default, so the user can just say "defaults are fine"):
+`litecraft.env` is plain `KEY=value` so both the shell launchers and `lc.py` can read it.
+
+---
+
+## Preferences
+
+Asked during initialisation (and once, later, for any key added in a newer version). Each has a recommended default except the landscape crop.
 
 | Key | Question | Options | Default |
 |---|---|---|---|
-| `crop.portrait` | Portrait shots — crop to? | `4:5` · uncropped | `4:5` |
-| `crop.landscape` | Landscape shots — crop to? | `4:5` portrait · `5:4` landscape · uncropped | ask (no default yet) |
-| `look.default` | Default look | from `presets/looks/` | `bright-natural` |
-| `export.long_edge_px` | Export size (long edge) | number · full-res | full-res |
-| `export.format` | Export format | JPEG · TIFF | JPEG (quality 90, sRGB) |
-| `export.folder` | Where exports go | job `export/` · custom path | job `export/` |
-| `review.auto_open` | Open LightCraft automatically when the batch finishes? | yes · no | yes |
-
-`preferences.json`
-```json
-{
-  "schema": 1,
-  "answered": "2026-10-17",
-  "crop": { "portrait": "4:5", "landscape": "4:5" },
-  "look": { "default": "bright-natural" },
-  "export": { "long_edge_px": null, "format": "jpeg", "quality": 90, "color_space": "srgb", "folder": null },
-  "review": { "auto_open": true }
-}
-```
+| `crop.portrait` | Portrait shots — crop to? | `4:5` · `none` | `4:5` |
+| `crop.landscape` | Landscape shots — crop to? | `4:5` (portrait) · `5:4` · `none` | ask |
+| `look.default` | Default look | presets made during setup | `bright-natural` |
+| `export.long_edge_px` | Export size (long edge) | number · `0` = full size | `0` |
+| `export.format` | Export format | `jpeg` · `tiff` | `jpeg` (quality 90, sRGB) |
+| `export.folder` | Where exports go | `null` = job `export/` · a path | `null` |
+| `review.auto_open` | Bring LightCraft to the front when the batch finishes? | `true` · `false` | `true` |
 
 Rules:
-- **Change anytime in chat:** "from now on keep landscape shots uncropped" → Claude confirms and updates the file.
-- **Per-job override** without changing defaults: "this job, leave landscapes uncropped" → stored in `job.json` only.
-- **Resolution order:** job override → `preferences.json` → `preferences.default.json`.
-- New preference keys added in later versions are asked once, the next time they're needed — not via a full re-onboarding.
+- **Change anytime in chat:** "from now on keep landscape shots uncropped" → `lc.py prefs set crop.landscape none`.
+- **Per-job override** without changing defaults: stored in `job.json` `overrides`.
+- **Resolution order:** job override → `preferences.json` → `plugin/defaults/preferences.json`.
 
 ---
 
-## Job folder
-
-```
-~/LiteCraft Jobs/<job-name>/
-├── library/                      # LightCraft library for this job (one job = one library)
-├── job.json                      # photo list + status
-├── log/<photo-id>.json           # every change + reason (audit + learning)
-└── export/                       # final full-res 4:5 output
-```
+## Jobs
 
 `job.json`
 ```json
@@ -125,15 +121,18 @@ Rules:
   "schema": 1,
   "name": "smith-kitchen",
   "source": "/Users/.../Smith Kitchen",
-  "look": "bright-natural",
-  "crop": { "portrait": "4:5", "landscape": "4:5" },   // resolved from preferences + any job override
-  "stage": "batch | review | exported",
+  "album_id": 4,
+  "created": "2026-10-17T17:30:00Z",
+  "stage": "editing | review | exported",
+  "overrides": { "crop.landscape": "none" },
   "photos": [
     {
-      "id": "12",
-      "slug": "kitchen-island",
+      "n": 12,
+      "lc_id": 1342,
       "file": "IMG_0412.CR3",
-      "status": "queued | editing | done | flagged | approved | exported",
+      "slug": "kitchen-island",
+      "orientation": "landscape",
+      "status": "queued | editing | done | flagged | approved | rejected | exported",
       "iterations": 3,
       "flag_reason": null,
       "updated": "2026-10-17T17:42:10Z"
@@ -142,185 +141,160 @@ Rules:
 }
 ```
 
-`log/<photo-id>.json`
+`n` is the job-local photo number the user uses in chat (`#12`); `lc_id` is LightCraft's photo id.
+
+`log/<n>.json` — one entry per pass:
 ```json
 {
   "schema": 1,
-  "id": "12",
+  "n": 12,
   "entries": [
     {
-      "iteration": 1,
       "at": "2026-10-17T17:40:02Z",
       "source": "preset | agent | feedback | user-tweak",
       "changes": [
         { "control": "light.exposure", "from": 0.0, "to": 0.4,
-          "reason": "Room underexposed vs. reference; midtones at 38%, target 50%" },
-        { "control": "crop", "from": "full", "to": { "aspect": "4:5", "rect": [0.12, 0.0, 0.66, 1.0], "angle": 0.0 },
-          "reason": "Centred on window + chairs; full chair legs kept; mantel edge excluded" }
+          "reason": "Room underexposed vs. reference; midtones at 38%, target 50%" }
       ],
-      "checks": { "verticals_deg": 0.2, "clipped_highlights_pct": 0.3 },
       "feedback": null
     }
   ]
 }
 ```
 
-`source: user-tweak` entries are written when Claude diffs the user's manual changes in review (via `get_develop`).
+Writes are atomic (temp file + rename) via `lc.py`.
 
 ### Status inside LightCraft
 
-So the user can filter to what needs attention without a separate app. Commands: `photo.label`, `photo.flag`, `photo.setMeta` (verified in connect mode).
+Verified in connect mode against LightCraft 0.8.0.
 
-| Status | LightCraft marker |
-|---|---|
-| done (agent passed all checks) | green colour label |
-| flagged (needs human eyes) | red colour label |
-| approved (user OK'd) | pick flag |
-| reject (don't export) | reject flag |
+| Status | LightCraft marker | Command |
+|---|---|---|
+| done (agent passed its checks) | green colour label | `photo.label {label: green, ids}` |
+| flagged (needs human eyes) | red colour label | `photo.label {label: red, ids}` |
+| approved (user OK'd) | pick flag | `photo.flag {flag: pick, ids}` |
+| rejected (don't export) | reject flag | `photo.flag {flag: reject, ids}` |
 
-Photo IDs and slugs go in the **title** (`#12 kitchen-island`) and a hierarchical keyword (`litecraft|#12`), via `photo.setMeta`. Claude's plain-English summary of what changed and why goes in the **caption**, so the audit trail is visible inside LightCraft. Keep keywords out of exports (`keyword.edit {includeOnExport: false}`).
+Titles carry the photo number and slug (`#12 kitchen-island`); the caption carries Claude's plain-English summary of what changed and why — both via `photo.setMeta {ids, title, caption}`.
 
 ---
 
 ## Edit order (per photo)
 
-Geometry before crop, crop before tone — tone checks are measured on what will actually be delivered.
+Geometry before crop, crop before tone — tone is judged on what will actually be delivered.
 
-1. Preset stack: camera base → lens base → look
-2. Geometry: Upright / straighten → vertical check
-3. **4:5 crop** (see below)
-4. Tone + colour loop on the cropped frame: render preview → checks → adjust → log (cap: 6 iterations)
-5. Final checks → status label → log
+1. Presets: camera base (if made) → lens base → look
+2. Geometry: `geometry.upright {mode: auto}` (or `vertical`) → check verticals on a render
+3. Crop to the target ratio (see below)
+4. Tone + colour loop on the cropped frame: render → compare (visually and with `lc.py stats`) → adjust → log (cap: 6 passes)
+5. Label, title, caption → log
 
-## 4:5 crop step
+## Crop step
 
-Sources are full-frame (M50 = 3:2). The deliverable is mostly **4:5**. The target ratio per orientation comes from preferences (`crop.portrait`, `crop.landscape`) — set on first run.
+M50 frames are 3:2. Target ratio per orientation comes from preferences.
 
-- **Portrait 3:2 → 4:5:** trims ~17% of height — a light crop; mostly about ceiling/floor balance.
-- **Landscape 3:2 → 4:5 portrait:** keeps ~53% of the width — a heavy crop; composition matters a lot, so flag more readily.
-- **Landscape 3:2 → 5:4 landscape:** trims ~17% of width — light.
-- **Uncropped:** skip this step (straighten-only).
+| Source | Target | Effect |
+|---|---|---|
+| portrait 3:2 | 4:5 | trims ~17% of height — light |
+| landscape 3:2 | 4:5 (portrait) | keeps ~53% of width — heavy; flag more readily |
+| landscape 3:2 | 5:4 | trims ~17% of width — light |
+| any | none | straighten only |
 
-Approach:
-- `crop_suggest.py` proposes a few candidate 4:5 rects (centred on the dominant vertical symmetry, rule-of-thirds variants, subject-weighted) with simple scores: verticals stay parallel, no key object cut at the edge, balanced ceiling/floor.
-- Claude renders the candidates, picks one using the house-style composition rules, applies it with the LightCraft `crop` tool (normalised rect + angle), and logs why.
-- Flag for review when no candidate keeps the key elements whole.
-- Crop is non-destructive — the user can drag it in LightCraft during review.
-
-House-style composition rules (seed, refine from finals):
-- Verticals perfectly vertical; architecture centred when the room is symmetrical.
-- Don't amputate furniture, art, lamps or plants at the frame edge — include fully or crop decisively.
-- Keep breathing room above the main subject; avoid large empty ceiling.
-- Tabletop/vignette shots: subject on a third or centred, background softness preserved.
+`lc.py crop --width W --height H --aspect 4:5` returns candidate normalised rects (centred, left/right thirds, top/bottom-weighted). Claude renders the strongest candidates, picks using the composition rules in `house-style.md`, applies with the MCP `crop` tool, and logs why. Flag when no candidate keeps the key elements whole.
 
 ---
 
-## Phase 0 — Feasibility spike
+## Initialisation (user's Mac)
 
-**Goal:** answer "production-viable, viable with caveats, or blocked?" on real images.
+Run by Claude Code on the user's machine via the **setup skill** (`/litecraft:setup`), after the plugin is installed. Resumable: each step is recorded in `~/LiteCraft/setup.json` and skipped once done. **This is where all tuning against the user's own photos happens — not in this repo.**
 
-Inputs:
-- [x] Camera + lens: Canon EOS M50, Sigma 30mm F1.4 DC DN (EF-M)
-- [~] Reference pairs: 2 pairs as Lightroom screenshots (`Samples/Test-1`) — style direction only
-- [ ] 10–20 original **CR3** files + the human finals for the same images, exported full-res from Lightroom
-- [ ] Confirm the living-room reference was shot on the M50 (it looks wider/phone-like)
+| # | Step | What happens | Needs from the user |
+|---|---|---|---|
+| 1 | `preflight` | Check macOS, Apple Silicon, `python3` | — |
+| 2 | `install_lightcraft` | Download pinned release (DMG + CLI zip, verify `SHA256SUMS.txt`), install app to `/Applications`, CLI to `~/LiteCraft/bin`; write `litecraft.env`; start the app once to create the library; confirm MCP connect | approve downloads |
+| 3 | `preferences` | Ask the preference questions; save | answers |
+| 4 | `camera_profile` | Ask whether Auto Lighting Optimizer is off (recommend off). Run `lightcraft-cli calibrate --max 300 --out ~/Library/Application\ Support/LightCraft/camera-profiles <folders>` on past M50 CR3s | a folder of ≥ 5 (ideally 30–300) M50 CR3s |
+| 5 | `lens` | Measure vignetting on a few wide-open frames of plain walls; save a lens preset (optics group) | a few f/1.4–f/2 CR3s (optional) |
+| 6 | `look` | Copy before/after pairs into `~/LiteCraft/references/`; for each, match the final by driving LightCraft; derive a common look from the matched settings (start from `defaults/looks/bright-natural.json`); save as the `bright-natural` preset; export `.lcpreset` backup | 5–20 pairs: original CR3 + their edited final |
+| 7 | `test_job` | Run the edit skill on 3–5 photos end-to-end; user reviews in LightCraft | a small test folder |
+| 8 | `complete` | Summarise what was set up; mark setup complete | — |
 
-Tasks:
-- [x] Build `lightcraft` + `lightcraft-cli` from source into `vendor/lightcraft` (gitignored) — source is **v0.8.0** (commit `f34c7a8`, 2026-10-15). For handover, use the macOS release assets instead (app + separate `lightcraft-cli-<version>-macos-<arch>.zip`, same version, verify `SHA256SUMS.txt`). Release build on M4 / 16 GB: ~3 min
-- [x] Headless MCP: `lightcraft-cli mcp --library <dir>` — import, `set_develop`, `crop`, `get_develop` all work (tested with `dev/mcp_probe.py`)
-- [x] `render_photo` returns image content Claude can see (JPEG/PNG, `size` = long edge)
-- [ ] M50 CR3 + C-RAW decode on real files (docs list the M50 as exact for both) **(verify)**
-- [x] **Hand-off:** headless edits persist in the library → `lightcraft --library <dir> --control 7980` shows them → `mcp --connect 127.0.0.1:7980` reads/edits the live app, `screenshot` works
-- [x] Library lock: headless `--library` on an open library fails with a clear message pointing at `--control` / `--connect`
-- [x] User slider tweaks in the app are visible live via `get_develop` in connect mode (tested: contrast 0 → −11, exposure +1.00 → +1.13 made by hand in the app)
-- [x] Status markers via `run_command`: `photo.label {label, ids}`, `photo.flag {flag, ids}`, `photo.setMeta {ids, title, caption, addKeywords}` — label shows on the filmstrip; query by `filter: {label}`
-- [ ] Check how the caption renders in the app's info panel (candidate audit surface: per-photo "what changed and why")
-- [ ] `crop` tool: apply a 4:5 rect, confirm export honours it **(verify)**
-- [ ] Colour test: M50 rendering (per-file JPEG fit) vs. human finals
-- [ ] **M50 camera profile:** `lightcraft-cli calibrate --max 300 <folders of M50 CR3s>` pools many files against their embedded JPEGs into one per-model profile (needs ≥ 5 usable photos; CR3 supported). Targets Canon's own look, not Adobe's — the camera base preset bridges the rest. Note: Canon Auto Lighting Optimizer isn't modelled — recommend turning ALO off in camera
-- [ ] Lens test: vignette at f/1.4–f/2.8; store correction
-- [ ] Mask test: window pull with luminance range; test external mask import **(verify)**
-- [ ] Match the reference pairs by hand-driving LightCraft via MCP; record settings
-- [ ] Measure: time/photo, iterations/photo, Claude usage/photo, quality vs. human finals
-- [ ] Write `feasibility/REPORT.md` with side-by-sides and a go/no-go
-
-**Exit:** a decision, and a list of the LightCraft gaps that actually bite.
+Notes for the step 6 matching:
+- Compare render vs. final at the same crop and size, side by side, and with `lc.py stats` (mean/percentile luminance, warmth, saturation).
+- Match tone and colour only; crop and geometry are matched separately.
+- Use the median across pairs for the look; per-pair outliers stay as per-image deltas, not the preset.
 
 ---
 
-## Phase 1 — Presets
+## Phase 0 — Feasibility (dev machine) — done
 
-**Goal:** a native preset stack that gets every image ~80% of the way with no agent.
+Verified against LightCraft **0.8.0** (commit `f34c7a8`) with `dev/mcp_probe.py`:
 
-- [ ] `camera/canon-m50` — colour base tuned against human finals
-- [ ] `lens/sigma-30-f14-dcdn` — vignette / CA (distortion likely negligible)
-- [ ] `looks/bright-natural` — first look, seeded from the reference pairs: lifted exposure, neutral-to-warm whites, lifted shadows with true blacks, moderate vibrance (greens/yellows/wood), gentle contrast + slight clarity
-- [ ] Further looks as finals arrive (e.g. moody/evening, mixed-tungsten)
-- [ ] `presets/README.md` — stack order and how presets combine
-- [ ] Script: apply stack + default centred 4:5 crop to a folder via `lightcraft-cli` and export — the "no agent" baseline
+- [x] Build app + CLI from source (~3 min on M4 / 16 GB). Release assets for installs: `lightcraft-0.8.0-macos-universal.dmg`, `lightcraft-cli-0.8.0-macos-universal.zip`, `SHA256SUMS.txt`
+- [x] Headless MCP: import, `set_develop`, `crop`, `get_develop`
+- [x] `render_photo` returns image content Claude can see
+- [x] Edits persist in the library; desktop app opened with `--control` shows them
+- [x] Connect mode: edit live, `screenshot`, read the user's own slider changes via `get_develop`
+- [x] Library lock: headless on an open library fails with a clear message
+- [x] Status markers: `photo.label`, `photo.flag`, `photo.setMeta` (title, caption, keywords)
 
-**Exit:** preset-only output measured against human finals; baseline numbers recorded.
+Moved to initialisation (needs the user's files): CR3 decode on real files, M50 profile, lens vignetting, colour vs. finals, look matching, quality and usage measurement.
 
----
-
-## Phase 2 — Plugin + skill (the agent pipeline)
-
-**Goal:** the user runs a whole job from the Claude desktop app and reviews it in LightCraft.
-
-- [ ] `plugin/.mcp.json` wiring `lightcraft-cli mcp` (headless by default; connect mode for review)
-- [ ] `house-style.md`: measurable rules — verticals ≤ 0.5°, clipped highlights ≤ 0.5% outside light sources, neutral whites, midtone target — plus crop composition rules
-- [ ] `SKILL.md` procedure:
-  0. **First run:** if `~/LiteCraft/preferences.json` is missing, ask the first-run questions and save answers
-  1. **Setup:** load preferences (+ any per-job override from the user's request); create job folder + `job.json`; detect camera/lens from EXIF
-  2. **Batch (headless):** import → preset stack → geometry → 4:5 crop → tone loop (cap 6) → status label + keywords → log
-  3. **Summarise in chat:** N done, N flagged and why, what to look at first
-  4. **Hand-off:** end headless session (release lock) → open LightCraft with `--control` on the job library → connect via MCP
-  5. **Review loop:** apply chat feedback by photo ID; on request (or before export) diff user tweaks via `get_develop` → log as `user-tweak`
-  6. **Learn:** propose preset / house-style updates from recurring feedback and tweaks (user approves)
-  7. **Export:** full-res 4:5 to `export/`, skipping rejects
-- [ ] `check_verticals.py`, `check_highlights.py`, `crop_suggest.py`
-- [ ] `job.py` — atomic job/log writes so the skill stays declarative
-- [ ] Previews at ~1200px long edge (enough to judge; keeps usage down)
-- [ ] Preferences: first-run questions, save/load, change-in-chat, per-job override
-- [ ] Recovery: if the desktop app is already open, go straight to connect mode; if connect fails, tell the user to open/close the app rather than fighting the lock
-- [ ] Test on Phase 0 sample end-to-end
-
-**Exit:** a non-technical user runs a job from chat, reviews and tweaks in LightCraft; quality ≥ Phase 1 baseline; usage per photo known.
+Still to check on the dev machine:
+- [ ] `crop` with a 4:5 rect is honoured by export
+- [ ] How the caption renders in the app's info panel
+- [ ] `geometry.upright` via `run_command` in connect mode
 
 ---
 
-## Phase 3 — Packaging + handover
+## Phase 1 — Plugin build (dev machine)
 
-- [ ] One-time setup checklist/script: Claude desktop app, Claude Code login, LightCraft app + CLI (pinned version), plugin install
-- [ ] Pin LightCraft version; note upgrade procedure
-- [ ] One-page user guide: start a job, review in LightCraft (filter by label), give feedback, tweak, export
-- [ ] Usage-limit handling documented (what happens, how to resume)
+**Goal:** a plugin another Claude Code instance can install and run setup from.
+
+- [ ] `CLAUDE.md` orientation
+- [ ] Marketplace + plugin manifests; `claude plugin validate` passes
+- [ ] `bin/lightcraft-mcp`, `bin/litecraft-app`, `.mcp.json`
+- [ ] `scripts/lc.py`: paths, env, prefs, setup state, jobs, logs, crop candidates, image stats
+- [ ] `defaults/preferences.json`, `defaults/looks/bright-natural.json`
+- [ ] `skills/setup/SKILL.md`
+- [ ] `skills/edit/SKILL.md` + `house-style.md`
+- [ ] Dry run on the dev machine against the vendored build with `LITECRAFT_HOME` pointed at a scratch folder
+- [ ] README updated for the real install flow
+
+**Exit:** `claude plugin validate` passes; a scratch-home dry run of setup steps 1–3 and a 1-photo job works here.
 
 ---
 
-## Phase 4 — Learning loop hardening
+## Phase 2 — Initialisation run (user's Mac)
 
-- [ ] Periodic "what have we learned" pass over `log/` across jobs → proposed preset/house-style diffs
-- [ ] Track per-job metrics: % approved without changes, avg user tweaks per photo, most-tweaked controls
+- [ ] Install Claude desktop app, sign in; open the Code tab
+- [ ] Add the marketplace and install the plugin
+- [ ] Run `/litecraft:setup` through to `complete`
+- [ ] Record results in this repo (no photos): calibration stats, matched look settings, time and usage per photo
 
 ---
 
-## Phase 5 — Optional: simple viewer (only if needed)
+## Phase 3 — Learning loop hardening
 
-Build only if LightCraft proves too complex for the user. A read-only localhost web page (static HTML + vanilla JS, tiny local server) that polls `job.json` / `log/` and shows a status grid, before/after and a plain-English "what changed" panel. Claude starts it with `open http://localhost:<port>/?job=<name>`. The job folder contract above already supports it.
+- [ ] Periodic "what have we learned" pass over job logs → proposed preset / house-style changes (user approves)
+- [ ] Per-job metrics: % approved without changes, user tweaks per photo, most-tweaked controls
+
+---
+
+## Phase 4 — Optional: simple viewer (only if needed)
+
+Only if LightCraft proves too complex for the user: a read-only localhost web page that polls `job.json` / `log/` and shows a status grid, before/after and a "what changed" panel.
 
 ---
 
 ## Open questions
 
-- ~~Landscape originals: 4:5 portrait, 5:4 landscape, or uncropped?~~ → asked on first run, saved to preferences
 - Are any references shot on something other than the M50 (e.g. a phone)?
 - Bracketed exposures (HDR merge) or single frames?
-- Output spec: long-edge size, format, colour space → first-run preferences. Still open: sharpening, watermark?
-- Claude plan: Pro or Max? (depends on Phase 0 usage numbers)
+- Sharpening and watermark on export?
+- Claude plan: Pro or Max? (measure during initialisation)
 - Does LightCraft accept externally generated masks?
-- Is `calibrate` (M50 profile from embedded JPEGs) + camera base preset good enough for colour?
-- Is Auto Lighting Optimizer on in the M50? (affects colour fitting)
+- Is the `calibrate` M50 profile + look preset close enough to the editor's colour? (answered during initialisation)
 
 ## Decisions log
 
@@ -329,8 +303,11 @@ Build only if LightCraft proves too complex for the user. A read-only localhost 
 | 2026-10-17 | Engine: LightCraft via MCP | Open source, scriptable, agent-ready, Lightroom-like controls |
 | 2026-10-17 | Driver: Claude desktop app + skill, not Agent SDK | Single local user; uses their subscription; least to build |
 | 2026-10-17 | Native presets derived from human finals, not ported XMP | Import is approximate; human finals are the benchmark |
-| 2026-10-17 | ~~Custom LiteCraft viewer~~ → LightCraft desktop app is the review surface | Nothing to build; user can fine-tune directly; user tweaks become learning signal. Viewer deferred to optional Phase 5 |
-| 2026-10-17 | Two-stage flow: headless batch → connect-mode review | Library lock allows one program at a time; connect mode shares the app's live session |
-| 2026-10-17 | 4:5 crop is an agent step, after geometry, before tone | Deliverable is mostly 4:5; tone should be judged on the delivered frame |
-| 2026-10-17 | Crop ratio + export spec are user preferences, asked on first run and saved to `~/LiteCraft/preferences.json` | User's call, not ours; outside the plugin so updates don't overwrite; changeable in chat |
-| 2026-10-17 | Kit: Canon M50 + Sigma 30mm F1.4 DC DN | M50 CR3/C-RAW listed as exact in LightCraft; low-distortion prime simplifies lens correction |
+| 2026-10-17 | ~~Custom LiteCraft viewer~~ → LightCraft desktop app is the review surface | Nothing to build; user can fine-tune directly; tweaks become learning signal |
+| 2026-10-17 | ~~Headless batch → connect-mode review~~ → **connect mode only**, app running for the whole job | A plugin MCP server lives for the whole session; a headless one would hold the library lock and block the app |
+| 2026-10-17 | One library at `~/LiteCraft/Library`, one album per job | Fixed MCP config; jobs browsable in LightCraft |
+| 2026-10-17 | Crop after geometry, before tone | Tone judged on the delivered frame |
+| 2026-10-17 | Crop ratio + export spec are user preferences | User's call; stored outside the plugin; changeable in chat |
+| 2026-10-17 | All tuning against the user's photos happens in an initialisation run on their Mac | Their files stay local; one setup skill makes it repeatable and obvious |
+| 2026-10-17 | Helper scripts are Python stdlib only | No pip installs on the user's Mac |
+| 2026-10-17 | Kit: Canon M50 + Sigma 30mm F1.4 DC DN | M50 CR3/C-RAW listed as exact in LightCraft; low-distortion prime |
