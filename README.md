@@ -97,15 +97,31 @@ Claude saves your answers, so it won't ask again.
 
 ## Your first job
 
-### 1. Put your photos in a folder
+### 1. Put your photos in your Shoots folder
 
-Copy the photos from the shoot (straight from the camera, the `.CR3` files) into a folder — for example `Desktop/Smith Kitchen`.
+LiteCraft keeps a **Shoots** folder for you, inside the **LiteCraft** folder in your home folder. In Finder: **Go → Home**, then **LiteCraft → Shoots**. (Tip: drag **Shoots** into Finder's sidebar so it's always one click away.)
+
+Make a new folder in there for each shoot — e.g. **Smith Kitchen** — and copy the photos into it straight from the camera (the `.CR3` files).
+
+**Why there?** LiteCraft edits your photos where they are and never changes the originals, so they need to stay put. The Shoots folder isn't synced to iCloud, so files are never moved off your Mac, and Claude and LightCraft can open it without macOS asking for permission.
+
+**Photos somewhere else?** That's fine too:
+
+- **Still on the memory card, or in Downloads, Desktop or Documents:** Claude copies them into your Shoots folder first. Your originals are left exactly where they were.
+- **Another folder on your Mac:** Claude edits them in place. Just don't move, rename or delete that folder while you still need the edits.
+- If macOS asks whether LightCraft or Claude can access a folder, click **Allow**.
 
 ### 2. Ask Claude to edit them
 
 In the Claude app's **Code** tab, type something like:
 
-> Edit the photos in Desktop/Smith Kitchen
+> Edit the Smith Kitchen shoot
+
+or point it at any folder or your memory card:
+
+> Edit the photos on my memory card — call the job Smith Kitchen
+
+Not sure of the folder's location? Drag the folder from Finder into the chat box — that pastes its location for Claude.
 
 ### 3. Let Claude work
 
@@ -191,6 +207,7 @@ Everything LiteCraft keeps is in the **LiteCraft** folder in your home folder:
 ```
 ~/LiteCraft/
 ├── Library/              LightCraft's library: your edits (originals are never changed)
+├── Shoots/Smith Kitchen/  your photos from each shoot (originals)
 ├── Jobs/Smith Kitchen/
 │   ├── log/              what was changed on each photo, and why
 │   └── export/           your finished photos
