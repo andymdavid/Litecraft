@@ -232,7 +232,7 @@ Tasks:
 - [ ] M50 CR3 + C-RAW decode on real files (docs list the M50 as exact for both) **(verify)**
 - [x] **Hand-off:** headless edits persist in the library → `lightcraft --library <dir> --control 7980` shows them → `mcp --connect 127.0.0.1:7980` reads/edits the live app, `screenshot` works
 - [x] Library lock: headless `--library` on an open library fails with a clear message pointing at `--control` / `--connect`
-- [ ] User slider tweak in the app visible via `get_develop` in connect mode
+- [x] User slider tweaks in the app are visible live via `get_develop` in connect mode (tested: contrast 0 → −11, exposure +1.00 → +1.13 made by hand in the app)
 - [x] Status markers via `run_command`: `photo.label {label, ids}`, `photo.flag {flag, ids}`, `photo.setMeta {ids, title, caption, addKeywords}` — label shows on the filmstrip; query by `filter: {label}`
 - [ ] Check how the caption renders in the app's info panel (candidate audit surface: per-photo "what changed and why")
 - [ ] `crop` tool: apply a 4:5 rect, confirm export honours it **(verify)**
