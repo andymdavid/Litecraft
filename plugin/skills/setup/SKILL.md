@@ -1,6 +1,10 @@
 ---
 name: setup
 description: First-time LiteCraft setup on the user's Mac — install LightCraft, ask the user's preferences, build their camera colour profile, lens correction and house look from their own photos and before/after references, then run a test job. Resumable. Use on a new install, when the user says "set up LiteCraft", when the edit skill reports setup is incomplete, or to redo one setup step (e.g. "redo the look from my new references").
+allowed-tools:
+  - Bash(${CLAUDE_PLUGIN_ROOT}/scripts/lc.py *)
+  - Bash(${CLAUDE_PLUGIN_ROOT}/bin/litecraft-app *)
+  - mcp__plugin_litecraft_lightcraft__*
 ---
 
 # LiteCraft — initialisation
@@ -8,8 +12,10 @@ description: First-time LiteCraft setup on the user's Mac — install LightCraft
 This is the one-time setup run on the **user's own Mac**. Everything that depends on their photos happens here, using files that stay on their machine. It is **resumable**: every step is recorded, and you always continue from the first unfinished one.
 
 **Paths.** Plugin root: `${CLAUDE_PLUGIN_ROOT}` (if that isn't expanded, it's two folders above this file). Helpers:
-- `"${CLAUDE_PLUGIN_ROOT}/scripts/lc.py"` — state, prefs, stats (prints JSON)
-- `"${CLAUDE_PLUGIN_ROOT}/bin/litecraft-app" start|status|front`
+- `${CLAUDE_PLUGIN_ROOT}/scripts/lc.py …` — state, prefs, stats (prints JSON)
+- `${CLAUDE_PLUGIN_ROOT}/bin/litecraft-app start|restart|status|front`
+
+Run these exactly as shown — full path, **no quotes**, no `cd` or `&&` in front — so they match LiteCraft's permission rules and run without asking. Wherever this skill says `lc.py` or `litecraft-app`, it means these full paths.
 
 User data lives in `~/LiteCraft` (`lc.py paths` shows every location).
 
@@ -19,14 +25,14 @@ User data lives in `~/LiteCraft` (`lc.py paths` shows every location).
 
 1. `lc.py setup status` → `next` is the step to do. If everything is done, say so and offer to redo a step.
 2. On a first run, briefly explain that setup has two parts:
-   - **Setup (about 10 minutes):** install LightCraft and ask their preferences (steps 1–3). After this they can start editing.
-   - **Teach LiteCraft your style (about 20–30 minutes, mostly you working):** camera profile, lens, look from before/after pairs, test job (steps 4–7). The look step is the longest (a minute or two per pair). For this part you'll ask for:
+   - **Setup (about 10 minutes):** install LightCraft, stop the constant permission questions, and ask their preferences (steps 1–4). After this they can start editing.
+   - **Teach LiteCraft your style (about 20–30 minutes, mostly you working):** camera profile, lens, look from before/after pairs, test job (steps 5–8). The look step is the longest (a minute or two per pair). For this part you'll ask for:
      - a folder of past shoot photos straight off the camera (`.CR3`), for the camera colour profile
      - optionally a few photos taken wide open of a plain wall, for the lens
      - **before/after pairs**: the original `.CR3` and the finished edit exported from Lightroom (full-size JPEG) — recommend starting with 5–10; more can be added later by redoing the look step
      - 3–5 new photos for a test run
 
-   After step 3, tell them editing is ready, and ask whether to carry on with the style part now or later ("carry on with setup" resumes it).
+   After step 4, tell them editing is ready, and ask whether to carry on with the style part now or later ("carry on with setup" resumes it).
 3. Do the steps below in order. After each: `lc.py setup done STEP --note "…"` (or `setup skip STEP --note "why"` for optional steps the user declines). To redo a step: `lc.py setup reset STEP`.
 
 ## 1. `preflight`
@@ -58,15 +64,25 @@ shasum -a 256 -c SHA256SUMS.txt --ignore-missing      # both must say OK — sto
 - **CLI:** `unzip -oq "lightcraft-cli-$VER-macos-universal.zip" -d "$DL"` → `cp "$DL/lightcraft-cli-$VER-macos-universal/lightcraft-cli" ~/LiteCraft/bin/` → `chmod +x ~/LiteCraft/bin/lightcraft-cli`.
 - `lc.py env init --cli ~/LiteCraft/bin/lightcraft-cli --app /Applications/LightCraft.app`
 - `lc.py env check` → must be `ok` with version `lightcraft-cli 0.8.0`.
-- `litecraft-app start` → the LightCraft window opens on an empty LiteCraft library.
+- `litecraft-app start` → the LightCraft window opens on the LiteCraft library (LightCraft's default location, `~/Pictures/LightCraft Library`, so it's the same library if the user later opens LightCraft from the Dock).
 - **Connect Claude to it:** the `lightcraft` MCP server only finds LightCraft once installed. Ask the user to type `/mcp` and reconnect **lightcraft** (or restart this Claude session — setup will resume where it left off). Confirm with the MCP `doc_inspect` tool.
 - Remove `~/LiteCraft/downloads` once everything works.
 
-## 3. `preferences`
+## 3. `permissions`
+
+Claude Code normally asks before every command and LightCraft action — dozens per job. Offer to stop that for LiteCraft's own tools only:
+
+> "Claude normally asks permission before each step. Shall I let it run LiteCraft's own tools and control LightCraft without asking each time? Anything else — like downloading or installing — will still ask you first."
+
+On yes: `lc.py permissions sync` (adds allow rules for the LightCraft tools, LiteCraft's two scripts, and reading files in `~/LiteCraft` to `~/.claude/settings.json`; it backs the file up first and leaves other settings alone). Mark done with `--note "allowed"`. On no: `setup done permissions --note "declined"` and tell them they'll see permission questions — choosing **"Yes, and don't ask again"** on them has a similar effect.
+
+To undo later: `lc.py permissions remove`.
+
+## 4. `preferences`
 
 `lc.py prefs missing` → ask each question in turn using its `question` and `explain` text, with the default as the recommendation (except `crop.landscape`, which has none — explain the trade-off and let them choose). Save each with `lc.py prefs set KEY VALUE`. Read the result back in one friendly sentence.
 
-## 4. `camera_profile`
+## 5. `camera_profile`
 
 Builds a colour profile for their camera from past photos, so colours start close to the camera's own.
 
@@ -82,7 +98,7 @@ Builds a colour profile for their camera from past photos, so colours start clos
 
 If they shoot more than one camera, repeat for each.
 
-## 5. `lens` (optional)
+## 6. `lens` (optional)
 
 Corrects the slight darkening in the corners at wide apertures (Sigma 30mm F1.4 on the M50).
 
@@ -92,7 +108,7 @@ Corrects the slight darkening in the corners at wide apertures (Sigma 30mm F1.4 
 4. `preset.create {name: "LiteCraft · Lens · Sigma 30mm F1.4", group: "LiteCraft", groups: ["optics"]}` from that photo.
 5. Back up: `preset.export {path: "~/LiteCraft/presets/lens-sigma-30.lcpreset", ids: [id]}` (expand `~`).
 
-## 6. `look`
+## 7. `look`
 
 The heart of setup: learn the user's house look from their own before/after pairs.
 
@@ -109,7 +125,7 @@ The heart of setup: learn the user's house look from their own before/after pair
 
 If they have distinct styles (e.g. a moody evening look), repeat with those pairs as a second look (`LiteCraft · <Name>`), add it as an option for `look.default`.
 
-## 7. `test_job`
+## 8. `test_job`
 
 1. Ask for a small folder of 3–5 photos **not** used as references.
 2. Run the edit skill on it as a normal job (name it `Test`).
@@ -117,7 +133,7 @@ If they have distinct styles (e.g. a moody evening look), repeat with those pair
 4. Ask how it felt and what they'd change. Feed real issues back into the presets or house style (with their OK).
 5. Note in the step: time taken, passes per photo, anything flagged.
 
-## 8. `complete`
+## 9. `complete`
 
 Summarise in plain words: what's installed, their preferences, camera profile, lens preset, the look and where backups are (`~/LiteCraft/presets`). Show them their Shoots folder (`open ~/LiteCraft/Shoots`) and suggest dragging it into Finder's sidebar; explain that each shoot goes in its own folder there. Tell them how to start a job ("Edit the Smith Kitchen shoot", or "Edit the photos on my memory card") and that they can change any preference by just saying so. `lc.py setup done complete`.
 
