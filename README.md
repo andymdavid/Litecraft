@@ -28,7 +28,7 @@ Currently tuned for a **Canon EOS M50** with a **Sigma 30mm F1.4** lens. Other c
 
 ## One-time setup
 
-You only do this once. It takes about 20–30 minutes, mostly Claude working while you point it at a few folders. If someone has set it up for you, skip to [Your first job](#your-first-job).
+You only do this once. Allow **about an hour** (up to two with lots of reference pairs). Only around 20 minutes of that needs you — the rest is Claude working while you get on with something else. If someone has set it up for you, skip to [Your first job](#your-first-job).
 
 ### 1. Install the Claude app
 
@@ -57,12 +57,12 @@ Claude walks you through it, one step at a time:
 2. **Asks how you like things** — crop shape, export size and so on (see below).
 3. **Learns your camera's colours** from a folder of past photos straight off the camera.
 4. **Corrects your lens** (optional) from a couple of photos of a plain wall at a wide aperture.
-5. **Learns your look** from **before/after pairs** — the original photo and your finished edit from Lightroom. 5–20 pairs is ideal.
+5. **Learns your look** from **before/after pairs** — the original photo and your finished edit from Lightroom. This is the longest step: a few minutes per pair.
 6. **Runs a test job** on 3–5 new photos so you can try reviewing and giving feedback.
 
 Have these ready (copies are fine, nothing is changed):
 - a folder of past shoot photos (`.CR3` files), the more the better
-- your before/after pairs: each original `.CR3` and its final edited JPEG
+- your before/after pairs: each original `.CR3` and its final edited JPEG — **5–10 pairs is a good start** (each takes Claude a few minutes to learn from); you can add more later
 - 3–5 new photos for the test
 
 If you stop partway, just say *"carry on with setup"* — it picks up where it left off.
