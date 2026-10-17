@@ -264,7 +264,10 @@ Still to check on the dev machine:
 - [x] Dry run: headless `claude -p --plugin-dir ./plugin` ran `/litecraft:edit` on 2 test images end to end — 71 turns, ~3 min, ~$1.5 usage-equivalent (~$0.75 / photo). Correct 4:5 crop, upright, labels, captions, export; flagged the heavy landscape crop. Found and fixed: free-text change logs (now validated). Noted: it cooled a warm vignette where the editor's final went warmer — expected to be corrected by the look step in setup
 - [x] README updated for the real install flow
 
-**Exit:** `claude plugin validate` passes; a scratch-home edit job works end to end here. ✅ Remaining before handover: run the setup skill's install step on a clean Mac (or user account), and install the plugin from the GitHub marketplace rather than `--plugin-dir`.
+**Exit:** `claude plugin validate` passes; a scratch-home edit job works end to end here. ✅
+- [x] Install from GitHub: `claude plugin marketplace add andymdavid/Litecraft` + `claude plugin install litecraft@litecraft` works (repo is public); in a fresh session outside the repo both skills load, `${CLAUDE_PLUGIN_ROOT}` is expanded in skill text, and the MCP server connects
+- [x] Bootstrap prompt: a fresh session given only "Install LiteCraft from github.com/andymdavid/Litecraft" follows the README block, installs the plugin and tells the user to start a new session and say "Set up LiteCraft"
+- [ ] Remaining: the setup skill's install step on the user's Mac (`/Applications` copy, `/mcp` reconnect), and the Claude desktop app's Code tab (tested with the CLI only)
 
 ---
 
