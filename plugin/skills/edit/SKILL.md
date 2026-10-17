@@ -38,7 +38,7 @@ For photo `#n` (LightCraft id `lc_id`):
 1. `lc.py job photo NAME n --status editing`; MCP `select_photos {ids: [lc_id], active: lc_id}`.
 2. **Presets** (in this order — the look's light group resets exposure, so it must come before per-photo tone):
    - lens preset if setup made one (`presets.list`, name starts `LiteCraft · Lens`)
-   - the look preset (`LiteCraft · <look label>`) via MCP `apply_preset`
+   - the look preset (`LiteCraft · <look label>`) via MCP `apply_preset`. If it doesn't exist yet (setup's look step not done), create it once from `${CLAUDE_PLUGIN_ROOT}/defaults/looks/<look>.json`: `set_develop {settings: <its "settings">}` on this photo, then `run_command preset.create {name: <its "label">, group: "LiteCraft", groups: <its "groups">}`
    - (camera colour comes from the camera profile automatically; nothing to apply)
 3. **Look at it.** MCP `render_photo {id: lc_id, size: 1200, format: "jpeg"}`. Decide the scene type (room / vignette / exterior) and a short slug (`kitchen-island`).
 4. **Geometry.** `run_command geometry.upright {mode: "auto"}` (`vertical` for strong architecture). Render and check verticals.
