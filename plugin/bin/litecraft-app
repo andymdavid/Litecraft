@@ -1,0 +1,69 @@
+#!/bin/bash
+# Start or check the LightCraft desktop app for LiteCraft.
+#
+#   litecraft-app start    open LightCraft on the LiteCraft library with remote control on
+#                          (no-op if it's already listening); waits until it's ready
+#   litecraft-app status   is it running, and is remote control on?
+#   litecraft-app front    bring the app window to the front
+#
+# Prints one line of JSON. Exit status 1 when the app can't be made ready.
+set -uo pipefail
+
+LITECRAFT_HOME="${LITECRAFT_HOME:-$HOME/LiteCraft}"
+ENV_FILE="$LITECRAFT_HOME/litecraft.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a; source "$ENV_FILE"; set +a
+fi
+APP="${LIGHTCRAFT_APP:-/Applications/LightCraft.app}"
+PORT="${LITECRAFT_PORT:-7980}"
+LIBRARY="${LITECRAFT_LIBRARY:-$LITECRAFT_HOME/Library}"
+
+listening() { nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1; }
+app_running() { pgrep -x LightCraft >/dev/null 2>&1 || pgrep -x lightcraft >/dev/null 2>&1; }
+json() { printf '{%s}\n' "$1"; }
+
+case "${1:-status}" in
+  status)
+    if listening; then json "\"running\": true, \"control\": true, \"port\": $PORT"
+    elif app_running; then json "\"running\": true, \"control\": false, \"port\": $PORT"
+    else json "\"running\": false, \"control\": false, \"port\": $PORT"
+    fi
+    ;;
+  start)
+    if listening; then
+      json "\"ready\": true, \"started\": false, \"port\": $PORT"
+      exit 0
+    fi
+    if app_running; then
+      json "\"ready\": false, \"error\": \"LightCraft is open without remote control. Ask the user to quit LightCraft (Cmd+Q), then run start again.\""
+      exit 1
+    fi
+    if [[ ! -e "$APP" ]]; then
+      json "\"ready\": false, \"error\": \"LightCraft app not found at $APP — run /litecraft:setup.\""
+      exit 1
+    fi
+    mkdir -p "$LIBRARY"
+    if [[ "$APP" == *.app ]]; then
+      open -a "$APP" --args --library "$LIBRARY" --no-demo --control "$PORT"
+    else
+      nohup "$APP" --library "$LIBRARY" --no-demo --control "$PORT" >"$LITECRAFT_HOME/lightcraft-app.log" 2>&1 &
+    fi
+    for _ in $(seq 1 120); do
+      if listening; then
+        json "\"ready\": true, \"started\": true, \"port\": $PORT, \"library\": \"$LIBRARY\""
+        exit 0
+      fi
+      sleep 0.5
+    done
+    json "\"ready\": false, \"error\": \"LightCraft did not start listening on port $PORT within 60s.\""
+    exit 1
+    ;;
+  front)
+    if [[ "$APP" == *.app ]]; then open -a "$APP"; else osascript -e 'tell application "System Events" to set frontmost of (first process whose name is "lightcraft") to true' >/dev/null 2>&1; fi
+    json "\"front\": true"
+    ;;
+  *)
+    echo "usage: litecraft-app start|status|front" >&2
+    exit 2
+    ;;
+esac
