@@ -26,9 +26,9 @@ Currently tuned for a **Canon EOS M50** with a **Sigma 30mm F1.4** lens. Other c
 
 ---
 
-## One-time setup
+## One-time setup — about 10 minutes
 
-You only do this once. It takes **about 30–40 minutes**, mostly Claude working while you point it at a few folders. If someone has set it up for you, skip to [Your first job](#your-first-job).
+You only do this once. If someone has set it up for you, skip to [Teach LiteCraft your style](#teach-litecraft-your-style).
 
 ### 1. Install the Claude app
 
@@ -51,14 +51,23 @@ Type:
 
 > Set up LiteCraft
 
-Claude walks you through it, one step at a time:
+Claude:
 
 1. **Installs LightCraft**, the free photo editor LiteCraft uses (it asks before downloading).
 2. **Asks how you like things** — crop shape, export size and so on (see below).
-3. **Learns your camera's colours** from a folder of past photos straight off the camera.
-4. **Corrects your lens** (optional) from a couple of photos of a plain wall at a wide aperture.
-5. **Learns your look** from **before/after pairs** — the original photo and your finished edit from Lightroom. This is the longest step — roughly a minute or two per pair.
-6. **Runs a test job** on 3–5 new photos so you can try reviewing and giving feedback.
+
+That's it — you can start editing now. Results get much closer to your style once you've done the next part.
+
+---
+
+## Teach LiteCraft your style — about 20–30 minutes
+
+Also once, straight after setup or whenever you're ready. Claude does the work; you point it at a few folders. Say *"carry on with setup"* to start it.
+
+1. **Learns your camera's colours** from a folder of past photos straight off the camera.
+2. **Corrects your lens** (optional) from a couple of photos of a plain wall at a wide aperture.
+3. **Learns your look** from **before/after pairs** — the original photo and your finished edit from Lightroom. This is the longest step — roughly a minute or two per pair.
+4. **Runs a test job** on 3–5 new photos so you can try reviewing and giving feedback.
 
 Have these ready (copies are fine, nothing is changed):
 - a folder of past shoot photos (`.CR3` files), the more the better
@@ -67,7 +76,7 @@ Have these ready (copies are fine, nothing is changed):
 
 If you stop partway, just say *"carry on with setup"* — it picks up where it left off.
 
-**Tip:** in your Canon M50's menu, turn **Auto Lighting Optimizer** off for future shoots. Claude will explain why during setup.
+**Tip:** in your Canon M50's menu, turn **Auto Lighting Optimizer** off for future shoots. Claude will explain why.
 
 ### The questions Claude asks
 
