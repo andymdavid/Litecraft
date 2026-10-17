@@ -18,11 +18,15 @@ User data lives in `~/LiteCraft` (`lc.py paths` shows every location).
 ## Start
 
 1. `lc.py setup status` → `next` is the step to do. If everything is done, say so and offer to redo a step.
-2. On a first run, briefly explain what setup does — about 30–40 minutes in total, mostly you working while they point you at folders; the look step is the longest (a minute or two per pair) — and what you'll ask for:
-   - a folder of past shoot photos straight off the camera (`.CR3`), for the camera colour profile
-   - optionally a few photos taken wide open of a plain wall, for the lens
-   - **before/after pairs**: the original `.CR3` and the finished edit exported from Lightroom (full-size JPEG) — recommend starting with 5–10; more can be added later by redoing the look step
-   - 3–5 new photos for a test run
+2. On a first run, briefly explain that setup has two parts:
+   - **Setup (about 10 minutes):** install LightCraft and ask their preferences (steps 1–3). After this they can start editing.
+   - **Teach LiteCraft your style (about 20–30 minutes, mostly you working):** camera profile, lens, look from before/after pairs, test job (steps 4–7). The look step is the longest (a minute or two per pair). For this part you'll ask for:
+     - a folder of past shoot photos straight off the camera (`.CR3`), for the camera colour profile
+     - optionally a few photos taken wide open of a plain wall, for the lens
+     - **before/after pairs**: the original `.CR3` and the finished edit exported from Lightroom (full-size JPEG) — recommend starting with 5–10; more can be added later by redoing the look step
+     - 3–5 new photos for a test run
+
+   After step 3, tell them editing is ready, and ask whether to carry on with the style part now or later ("carry on with setup" resumes it).
 3. Do the steps below in order. After each: `lc.py setup done STEP --note "…"` (or `setup skip STEP --note "why"` for optional steps the user declines). To redo a step: `lc.py setup reset STEP`.
 
 ## 1. `preflight`
