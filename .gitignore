@@ -4,3 +4,6 @@ samples/
 # Built from source locally
 vendor/
 .DS_Store
+# Local planning docs — not published
+VISION.md
+IMPLEMENTATION.md
