@@ -507,8 +507,8 @@ def cmd_job(a):
             value = getattr(a, field)
             if value is not None:
                 photo[field] = value
-        if a.status and a.status != "flagged" and a.flag_reason is None:
-            photo["flag_reason"] = None  # a stale reason would mislead the review summary
+        if a.status in ("done", "approved") and a.flag_reason is None:
+            photo["flag_reason"] = None  # resolved; keep the reason through export/reject for the record
         photo["updated"] = now()
         save_job(job)
         out(photo)
