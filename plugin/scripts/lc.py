@@ -234,6 +234,18 @@ def resolved_prefs(overrides=None):
     return prefs
 
 
+def check_pref_value(key, value):
+    """Type checks for the free-form preferences (option lists are checked against the defaults file)."""
+    if key == "export.long_edge_px" and not (isinstance(value, int) and not isinstance(value, bool) and value >= 0):
+        return "use a whole number of pixels, or 0 for full size"
+    if key == "export.folder" and value is not None:
+        if not isinstance(value, str) or not os.path.isabs(os.path.expanduser(value)):
+            return "use a full folder path, or null for each job's own export folder"
+    if key == "look.default" and not (isinstance(value, str) and value.strip()):
+        return "use the name of a look"
+    return None
+
+
 def cmd_prefs(a):
     d = default_prefs()
     keys = {q["key"]: q for q in d["questions"]}
@@ -250,6 +262,9 @@ def cmd_prefs(a):
         if a.key not in keys:
             fail(f"unknown preference {a.key!r}; known: {', '.join(keys)}")
         value = parse_value(a.value)
+        problem = check_pref_value(a.key, value)
+        if problem:
+            fail(f"{a.key}: {problem}")
         allowed = keys[a.key].get("options")
         if allowed and value not in allowed and not keys[a.key].get("free"):
             fail(f"{a.key} must be one of {allowed}")
@@ -492,6 +507,8 @@ def cmd_job(a):
             value = getattr(a, field)
             if value is not None:
                 photo[field] = value
+        if a.status and a.status != "flagged" and a.flag_reason is None:
+            photo["flag_reason"] = None  # a stale reason would mislead the review summary
         photo["updated"] = now()
         save_job(job)
         out(photo)
@@ -507,6 +524,12 @@ def cmd_job(a):
         out({k: job[k] for k in ("name", "stage", "album_id", "source")})
     elif a.action == "override":
         job = load_job(a.name)
+        known = {q["key"] for q in default_prefs()["questions"]}
+        if a.key not in known:
+            fail(f"unknown preference {a.key!r}; known: {', '.join(sorted(known))}")
+        problem = check_pref_value(a.key, parse_value(a.value))
+        if problem:
+            fail(f"{a.key}: {problem}")
         job["overrides"][a.key] = parse_value(a.value)
         save_job(job)
         out(job["overrides"])
@@ -548,7 +571,7 @@ def validate_entry(entry):
 
 
 def cmd_log(a):
-    load_job(a.name)
+    find_photo(load_job(a.name), a.n)
     path = os.path.join(job_dir(a.name), "log", f"{a.n}.json")
     log = read_json(path, {"schema": 1, "n": a.n, "entries": []})
     if a.action == "add":
@@ -568,13 +591,15 @@ def cmd_log(a):
 
 def parse_aspect(text):
     m = re.fullmatch(r"(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)", text)
-    if not m:
+    if not m or float(m.group(1)) == 0 or float(m.group(2)) == 0:
         fail(f"aspect {text!r}: use W:H, e.g. 4:5")
     return float(m.group(1)) / float(m.group(2))
 
 
 def cmd_crop(a):
     w, h = float(a.width), float(a.height)
+    if w <= 0 or h <= 0:
+        fail("width and height must be positive pixel sizes")
     if a.aspect == "none":
         out({"aspect": "none", "candidates": [{"name": "full", "rect": [0, 0, 1, 1], "keeps": 1.0}]})
         return
