@@ -7,9 +7,19 @@ set -euo pipefail
 
 LITECRAFT_HOME="${LITECRAFT_HOME:-$HOME/LiteCraft}"
 ENV_FILE="$LITECRAFT_HOME/litecraft.env"
-if [[ -f "$ENV_FILE" ]]; then
-  set -a; source "$ENV_FILE"; set +a
-fi
+# Read litecraft.env as data — never `source` it, so a value can't run as shell code.
+read_env_file() {
+  local k v
+  [[ -f "$1" ]] || return 0
+  while IFS='=' read -r k v || [[ -n "$k" ]]; do
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    case "$k" in
+      LIGHTCRAFT_CLI|LIGHTCRAFT_APP|LITECRAFT_LIBRARY|LITECRAFT_PORT) printf -v "$k" '%s' "$v" ;;
+    esac
+  done < "$1"
+}
+read_env_file "$ENV_FILE"
+[[ "${LITECRAFT_PORT:-7980}" =~ ^[0-9]+$ ]] || LITECRAFT_PORT=7980
 
 CLI="${LIGHTCRAFT_CLI:-}"
 if [[ -z "$CLI" || ! -x "$CLI" ]]; then
