@@ -422,8 +422,11 @@ def cmd_trash(a):
 # ---------------------------------------------------------------- jobs
 
 def job_dir(name):
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,80}", name):
-        fail(f"job name {name!r}: use letters, numbers, spaces, - _ .")
+    """Any name that works as a folder name: 1-100 characters, no / or :, no control characters,
+    not starting with a dot or a space (so no hidden folders and no '..')."""
+    if (not name or len(name) > 100 or name != name.strip() or name.startswith(".")
+            or re.search(r"[/:\x00-\x1f\x7f]", name)):
+        fail(f"job name {name!r}: use up to 100 characters, without / or : and not starting with a dot")
     return os.path.join(paths()["jobs"], name)
 
 
