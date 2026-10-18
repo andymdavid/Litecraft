@@ -6,19 +6,23 @@ You point Claude at a folder of photos from a shoot. Claude edits them in your h
 
 You never have to touch a slider unless you want to.
 
-> **For Claude Code, if you've been asked to install LiteCraft from this repo:**
-> 1. Run `claude plugin marketplace add andymdavid/Litecraft` then `claude plugin install litecraft@litecraft` (the repo is public; no clone needed).
-> 2. Tell the user to **start a new Claude Code session** (the plugin's skills and LightCraft connection only load in a new session) and type **"Set up LiteCraft"** there.
-> 3. Don't try to do the setup from these files in the current session — the `/litecraft:setup` skill handles installing LightCraft, permissions, preferences and tuning, and resumes if interrupted.
+<details>
+<summary>Instructions for Claude Code (you can skip this)</summary>
 
-> **Status: early version.** The plugin is built; the first real setup on a user's Mac is next.
+If you've been asked to install LiteCraft from this repo:
+
+1. Run `claude plugin marketplace add andymdavid/Litecraft` then `claude plugin install litecraft@litecraft` (the repo is public; no clone needed).
+2. Tell the user to **start a new Claude Code session** (the plugin's skills and LightCraft connection only load in a new session) and type **"Set up LiteCraft"** there.
+3. Don't try to do the setup from these files in the current session — the `/litecraft:setup` skill handles installing LightCraft, permissions, preferences and tuning, and resumes if interrupted.
+
+</details>
 
 ---
 
 ## What you need
 
 - A **Mac** (Apple Silicon recommended, 16 GB memory or more for big shoots)
-- The **Claude desktop app**, signed in with a **Claude Pro or Max** plan (Max recommended for large shoots)
+- The **Claude desktop app**, signed in with a **Claude Pro or Max** plan (Max recommended for large shoots). Already using Claude Code in Terminal? That works too.
 - Space for your photos — see [Disk space](#disk-space)
 
 LightCraft (the photo editor) and the LiteCraft plugin are installed for you during setup — you don't need to download anything yourself.
@@ -31,24 +35,37 @@ Currently tuned for a **Canon EOS M50** with a **Sigma 30mm F1.4** lens. Other c
 
 You only do this once. If someone has set it up for you, skip to [Teach LiteCraft your style](#teach-litecraft-your-style).
 
-### 1. Install the Claude app
+### 1. Open Claude's Code tab
 
-Install the **Claude desktop app** and sign in. Open the **Code** tab — LiteCraft runs there, because it works with files on your Mac. When asked for a folder to work in, choose your **home folder** (the one with your name), and use the same one each time.
+**Already have the Claude app?** Make sure it's up to date (**Claude → Check for Updates…**) and that you're signed in.
+
+**Don't have it yet?** Download the **Claude desktop app** from [claude.ai/download](https://claude.ai/download), install it and sign in.
+
+Then open the **Code** tab — LiteCraft runs there, because it works with files on your Mac. When asked for a folder to work in, choose your **home folder** (the one with your name), and use the same one each time.
 
 ### 2. Install the LiteCraft plugin
 
-In the Code tab, type these two lines one at a time, pressing Return after each:
+In the Code tab, type:
+
+> Install LiteCraft from github.com/andymdavid/Litecraft
+
+Claude installs it and tells you when it's done. Then **start a new session** so Claude picks it up — use the new session button, or quit and reopen the Claude app.
+
+<details>
+<summary>Or install it yourself</summary>
+
+Type these two lines one at a time, pressing Return after each, then start a new session:
 
 ```
 /plugin marketplace add andymdavid/Litecraft
 /plugin install litecraft@litecraft
 ```
 
-Then **start a new session** so Claude picks it up — use the new session button, or quit and reopen the Claude app.
+</details>
 
 ### 3. Run setup
 
-Type:
+In the new session, type:
 
 > Set up LiteCraft
 
