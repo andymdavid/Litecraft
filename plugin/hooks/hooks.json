@@ -7,11 +7,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3",
+            "command": "/bin/bash",
             "timeout": 15,
             "onFailure": "block",
             "args": [
-              "${CLAUDE_PLUGIN_ROOT}/hooks/guard.py"
+              "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh"
             ]
           }
         ]
