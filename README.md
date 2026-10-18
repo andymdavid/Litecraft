@@ -255,7 +255,7 @@ Nothing changes unless you say yes.
 
 Camera files are big: each M50 `.CR3` is about 25–30 MB, so a 200-photo shoot is around 5–6 GB, and finished JPEGs add a little more. If Claude copies a shoot from a memory card, that's another copy on your Mac.
 
-Once a shoot is delivered and backed up, you can free space by deleting its folder from **LiteCraft → Shoots**. Ask Claude first (*"I've delivered Smith Kitchen — what can I delete?"*), because LightCraft needs the originals to re-export or change those photos.
+Once a shoot is delivered and backed up, ask Claude: *"I've delivered Smith Kitchen — what can I delete?"* It shows you what's taking space and, if you confirm, moves that shoot's folder to the **Bin** (so you can still get it back). LightCraft needs a shoot's originals to re-export or change those photos, so only remove ones you're finished with.
 
 ---
 
@@ -271,7 +271,12 @@ Once a shoot is delivered and backed up, you can free space by deleting its fold
 | Your answers to the setup questions | **LiteCraft → preferences.json** |
 | LightCraft's library (your edits) | **Pictures → LightCraft Library** |
 
-**Your original photos are never modified.** All editing is non-destructive.
+### Your original photos are safe
+
+- **Editing never changes them.** Your edits are stored in LightCraft's library; finished photos are new files in the export folder.
+- **Nothing moves, renames or deletes them without you.** LiteCraft includes a guard: if anything would move, rename, overwrite or delete an original — whether Claude suggested it or you asked — Claude asks you first with a clear message. Only say yes if you asked for it.
+- **Want to move or rename photos?** Just ask (*"move the Smith Kitchen photos into my Archive folder"*). Claude does it through LightCraft so your edits stay linked, after you confirm.
+- **Freeing space puts things in the Bin,** never deletes them outright — you can drag a shoot back if you change your mind.
 
 ---
 
