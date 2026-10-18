@@ -2,7 +2,7 @@
 
 LiteCraft is a Claude Code plugin that edits interior photos by driving **LightCraft** (an open-source, Lightroom-like raw editor) over MCP. The user chats with Claude; edits happen live in the LightCraft desktop app, where the user reviews and fine-tunes.
 
-Read [IMPLEMENTATION.md](IMPLEMENTATION.md) for architecture, file formats and status. [VISION.md](VISION.md) is the why; [README.md](README.md) is the user guide.
+[README.md](README.md) is the user guide. The planning docs (`VISION.md`, `IMPLEMENTATION.md` — architecture, file formats, status) are kept locally on the dev machine and are gitignored; read them if present.
 
 ## Which situation are you in?
 
@@ -17,7 +17,7 @@ The plugin is (or is about to be) installed and the user has their own photos. Y
 then restart the session so the plugin's MCP server and skills load.
 
 **2. You're developing the plugin in this repo.**
-Work against the phases in IMPLEMENTATION.md and tick items off as they're verified.
+If `IMPLEMENTATION.md` is present, work against its phases and tick items off as they're verified (it's local-only — don't commit it).
 
 ## Rules
 
