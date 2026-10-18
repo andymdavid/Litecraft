@@ -146,6 +146,9 @@ def read_env():
 def cmd_env(a):
     p = paths()
     if a.action == "init":
+        for name, value in (("--cli", a.cli), ("--app", a.app), ("--library", a.library)):
+            if value and re.search(r"[\"'`$\\\n\r]", value):
+                fail(f"{name} path contains characters LiteCraft won't store (quotes, $, `, backslash or newlines): {value!r}")
         env = {
             "LIGHTCRAFT_CLI": os.path.abspath(os.path.expanduser(a.cli)),
             "LIGHTCRAFT_APP": os.path.abspath(os.path.expanduser(a.app)),
