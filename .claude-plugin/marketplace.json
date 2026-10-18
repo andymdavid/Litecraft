@@ -9,7 +9,7 @@
       "name": "litecraft",
       "source": "./plugin",
       "description": "Edit interior photos by chatting with Claude, driving the LightCraft editor.",
-      "version": "0.2.0"
+      "version": "0.2.1"
     }
   ]
 }
