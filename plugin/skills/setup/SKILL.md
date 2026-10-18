@@ -62,7 +62,7 @@ shasum -a 256 -c SHA256SUMS.txt --ignore-missing      # both must say OK — sto
 - **App:** if `/Applications/LightCraft.app` exists and LightCraft is running, ask the user to quit it first. Then:
   `M=$(hdiutil attach -nobrowse -readonly "lightcraft-$VER-macos-universal.dmg" | tail -1 | awk -F'\t' '{print $NF}')` → `ditto "$M/LightCraft.app" /Applications/LightCraft.app` → `hdiutil detach "$M"`.
 - **CLI:** `unzip -oq "lightcraft-cli-$VER-macos-universal.zip" -d "$DL"` → `cp "$DL/lightcraft-cli-$VER-macos-universal/lightcraft-cli" ~/LiteCraft/bin/` → `chmod +x ~/LiteCraft/bin/lightcraft-cli`.
-- `lc.py env init --cli ~/LiteCraft/bin/lightcraft-cli --app /Applications/LightCraft.app`
+- `lc.py env init --cli ~/LiteCraft/bin/lightcraft-cli --app /Applications/LightCraft.app` — this always shows a confirmation prompt (it sets which programs LiteCraft runs); tell the user to choose **Yes**.
 - `lc.py env check` → must be `ok` with version `lightcraft-cli 0.8.0`.
 - `litecraft-app start` → the LightCraft window opens on the LiteCraft library (LightCraft's default location, `~/Pictures/LightCraft Library`, so it's the same library if the user later opens LightCraft from the Dock).
 - **Connect Claude to it:** the `lightcraft` MCP server only finds LightCraft once installed. Ask the user to type `/mcp` and reconnect **lightcraft** (or restart this Claude session — setup will resume where it left off). Confirm with the MCP `doc_inspect` tool.
@@ -76,7 +76,7 @@ Claude Code normally asks before every command and LightCraft action — dozens 
 
 > "Claude normally asks permission before each step. Shall I let it run LiteCraft's own tools and control LightCraft without asking each time? Anything else — like downloading or installing — will still ask you first."
 
-On yes: `lc.py permissions sync` (adds allow rules for the LightCraft tools, LiteCraft's two scripts, and reading files in `~/LiteCraft` to `~/.claude/settings.json`; it backs the file up first and leaves other settings alone). Mark done with `--note "allowed"`. On no: `setup done permissions --note "declined"` and tell them they'll see permission questions — choosing **"Yes, and don't ask again"** on them has a similar effect.
+On yes: `lc.py permissions sync` — Claude Code will show one confirmation prompt for it (LiteCraft always asks before changing permissions); tell the user to choose **Yes**. It adds allow rules for the LightCraft tools, LiteCraft's two scripts, and reading files in `~/LiteCraft` to `~/.claude/settings.json`; it backs the file up first and leaves other settings alone). Mark done with `--note "allowed"`. On no: `setup done permissions --note "declined"` and tell them they'll see permission questions — choosing **"Yes, and don't ask again"** on them has a similar effect.
 
 To undo later: `lc.py permissions remove`.
 

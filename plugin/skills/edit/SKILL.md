@@ -22,7 +22,7 @@ Run these exactly as shown — full path, **no quotes**, no `cd` or `&&` in fron
 ## 0. Before anything
 
 1. `lc.py setup status`. If `install_lightcraft` or `preferences` isn't `done`, stop and say setup is needed first — offer to run it (`/litecraft:setup`). Other unfinished steps (camera profile, lens, look, test job) don't block editing, but mention once that results improve after them.
-2. `lc.py permissions show`. If setup's `permissions` step was `done` with note `allowed` and `in_sync` is false (the plugin was updated), run `lc.py permissions sync` — no need to ask again.
+2. `lc.py permissions show`. If setup's `permissions` step was `done` with note `allowed` and `in_sync` is false (the plugin was updated), run `lc.py permissions sync`. Claude Code shows a confirmation prompt for it; tell the user it's just LiteCraft refreshing its permissions after an update.
 3. `lc.py prefs missing`. Ask only those questions (use each question's text and `explain`), save each with `lc.py prefs set KEY VALUE`. Don't re-ask anything already answered.
 4. `litecraft-app start`. If it reports LightCraft is open without remote control (the user opened it from the Dock), ask: "LightCraft is already open — OK if I reopen it so I can work in it? Nothing will be lost." On yes, `litecraft-app restart`. If the `lightcraft` MCP tools are unavailable, ask the user to run `/mcp` and reconnect `lightcraft` (or restart the session).
 
