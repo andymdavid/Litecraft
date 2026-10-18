@@ -33,6 +33,7 @@ LIBRARY="${LITECRAFT_LIBRARY:-$HOME/Pictures/LightCraft Library}"
 listening() { nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1; }
 app_running() { pgrep -x LightCraft >/dev/null 2>&1 || pgrep -x lightcraft >/dev/null 2>&1; }
 json() { printf '{%s}\n' "$1"; }
+esc() { local s="${1//\\/\\\\}"; printf '%s' "${s//\"/\\\"}"; }   # escape for a JSON string
 
 case "${1:-status}" in
   status)
@@ -51,7 +52,7 @@ case "${1:-status}" in
       exit 1
     fi
     if [[ ! -e "$APP" ]]; then
-      json "\"ready\": false, \"error\": \"LightCraft app not found at $APP — run /litecraft:setup.\""
+      json "\"ready\": false, \"error\": \"LightCraft app not found at $(esc "$APP") — run /litecraft:setup.\""
       exit 1
     fi
     mkdir -p "$LIBRARY"
@@ -62,7 +63,7 @@ case "${1:-status}" in
     fi
     for _ in $(seq 1 120); do
       if listening; then
-        json "\"ready\": true, \"started\": true, \"port\": $PORT, \"library\": \"$LIBRARY\""
+        json "\"ready\": true, \"started\": true, \"port\": $PORT, \"library\": \"$(esc "$LIBRARY")\""
         exit 0
       fi
       sleep 0.5
@@ -87,6 +88,10 @@ case "${1:-status}" in
     exec "$0" start
     ;;
   front)
+    # Never launch LightCraft from here: without --control Claude couldn't connect to it.
+    if ! listening; then
+      "$0" start >/dev/null || { json "\"front\": false, \"error\": \"LightCraft isn't ready — run start (or restart) first.\""; exit 1; }
+    fi
     if [[ "$APP" == *.app ]]; then open -a "$APP"; else osascript -e 'tell application "System Events" to set frontmost of (first process whose name is "lightcraft") to true' >/dev/null 2>&1; fi
     json "\"front\": true"
     ;;
