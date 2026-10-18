@@ -10,13 +10,14 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GUARD = os.path.join(ROOT, "plugin", "hooks", "guard.py")
+GUARD = os.path.join(ROOT, "plugin", "hooks", "guard.sh")
 MCP = "mcp__plugin_litecraft_lightcraft__"
 
 
-def run(home, tool, tool_input):
+def run(home, tool, tool_input, cwd=None):
     env = dict(os.environ, LITECRAFT_HOME=home)
-    r = subprocess.run([sys.executable, GUARD], input=json.dumps({"tool_name": tool, "tool_input": tool_input}),
+    payload = {"tool_name": tool, "tool_input": tool_input, "cwd": cwd or os.path.dirname(home)}
+    r = subprocess.run(["/bin/bash", GUARD], input=json.dumps(payload),
                        capture_output=True, text=True, env=env, timeout=20)
     if r.returncode != 0:
         return f"error {r.returncode}: {r.stderr.strip()}"
@@ -38,6 +39,8 @@ def main():
         sk = os.path.join(shoots, "Smith Kitchen")
         export = os.path.join(home, "Jobs", "Smith Kitchen", "export")
         lc = "/x/plugins/cache/litecraft/litecraft/0.1.0/scripts/lc.py"
+        previews = os.path.join(home, "Jobs", "Smith Kitchen", "previews")
+        user_home = os.path.dirname(home)   # the session's working folder in these tests
 
         cases = [
             # --- LightCraft: normal editing passes
@@ -86,6 +89,36 @@ def main():
             ("ask", "Bash", {"command": "mv /Volumes/EOS_DIGITAL/DCIM/100CANON/IMG_1.CR3 ~/Desktop"}),
             ("ask", "Bash", {"command": f"{lc} trash 'Smith Kitchen'"}),
             ("ask", "Bash", {"command": f"python3 -c \"import shutil; shutil.rmtree('{sk}')\""}),
+            # --- Write targets on LightCraft tools and commands
+            ("pass", MCP + "render_photo", {"id": 3, "size": 1200, "path": os.path.join(previews, "3.jpg")}),
+            ("pass", MCP + "render_photo", {"id": 3, "size": 800, "path": "/tmp/render.jpg"}),
+            ("ask", MCP + "render_photo", {"id": 3, "path": os.path.join(sk, "IMG_1.CR3")}),
+            ("ask", MCP + "render_photo", {"id": 3, "path": os.path.join(elsewhere, "IMG_1.jpg")}),
+            ("ask", MCP + "screenshot", {"path": os.path.expanduser("~/Library/LaunchAgents/x.png")}),
+            ("pass", MCP + "run_command", {"command": "preset.export", "params": {"path": os.path.join(home, "presets", "look.lcpreset")}}),
+            ("ask", MCP + "run_command", {"command": "preset.export", "params": {"path": os.path.expanduser("~/.zshrc")}}),
+            ("ask", MCP + "run_command", {"command": "export.contactSheet", "params": {"path": os.path.join(sk, "sheet.pdf")}}),
+            ("ask", MCP + "run_command", {"command": "photo.editExternal", "params": {"ids": [1]}}),
+            ("pass", MCP + "run_command", {"command": "photo.editExternal", "params": {"ids": [1], "dir": export}}),
+            ("ask", MCP + "run_command", {"command": "photo.convertToDng", "params": {"ids": [1]}}),
+            ("ask", MCP + "run_command", {"command": "photo.duplicate", "params": {"ids": [1]}}),
+            ("ask", MCP + "run_command", {"command": "merge.hdrBatch", "params": {"ids": [1, 2, 3]}}),
+            ("ask", MCP + "import", {"paths": ["/Volumes/EOS_DIGITAL/DCIM"], "mode": "copy", "destination": os.path.expanduser("~/Documents/x")}),
+            ("ask", MCP + "export", {"ids": [1], "dir": os.path.expanduser("~/Documents/Elsewhere")}),
+            # --- Shell: relative paths, cd, write-capable "read" tools, LiteCraft config
+            ("ask", "Bash", {"command": "rm -rf LiteCraft/Shoots/Smith\\ Kitchen"}, user_home),
+            ("ask", "Bash", {"command": "cd LiteCraft/Shoots && rm -r 'Smith Kitchen'"}, user_home),
+            ("ask", "Bash", {"command": "mv IMG_1.CR3 /tmp/"}, sk),
+            ("pass", "Bash", {"command": "ls -la"}, sk),
+            ("ask", "Bash", {"command": f"exiftool -Artist=x -overwrite_original '{sk}/IMG_1.CR3'"}),
+            ("pass", "Bash", {"command": f"exiftool -s -Model '{sk}/IMG_1.CR3'"}),
+            ("ask", "Bash", {"command": f"sort -o '{sk}/list.txt' /tmp/a"}),
+            ("ask", "Bash", {"command": f"{lc} env init --cli /tmp/x --app /tmp/y"}),
+            ("ask", "Bash", {"command": f"{lc} permissions sync"}),
+            ("ask", "Bash", {"command": f"{lc} permissions remove"}),
+            ("pass", "Bash", {"command": f"{lc} permissions show"}),
+            ("pass", "Bash", {"command": f"{lc} prefs set crop.landscape 4:5"}),
+            ("pass", "Bash", {"command": "git status && npm test 2>&1 | tail -5"}),
             # --- File tools
             ("ask", "Write", {"file_path": os.path.join(sk, "x.txt"), "content": "x"}),
             ("ask", "Edit", {"file_path": os.path.join(elsewhere, "x.xmp"), "old_string": "a", "new_string": "b"}),
@@ -93,8 +126,9 @@ def main():
             ("pass", "Read", {"file_path": os.path.join(sk, "IMG_1.CR3")}),
         ]
         failures = 0
-        for expected, tool, tool_input in cases:
-            got = run(home, tool, tool_input)
+        for case in cases:
+            expected, tool, tool_input = case[:3]
+            got = run(home, tool, tool_input, case[3] if len(case) > 3 else None)
             ok = got == expected
             failures += not ok
             label = tool.replace(MCP, "lightcraft:")
