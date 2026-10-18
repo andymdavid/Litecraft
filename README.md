@@ -11,7 +11,7 @@ You never have to touch a slider unless you want to.
 > 2. Tell the user to **start a new Claude Code session** (the plugin's skills and LightCraft connection only load in a new session) and type **"Set up LiteCraft"** there.
 > 3. Don't try to do the setup from these files in the current session — the `/litecraft:setup` skill handles installing LightCraft, permissions, preferences and tuning, and resumes if interrupted.
 
-> **Status: early version.** The plugin is built; the first real setup on a user's Mac is next. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for progress.
+> **Status: early version.** The plugin is built; the first real setup on a user's Mac is next.
 
 ---
 
@@ -280,5 +280,3 @@ Ask Claude to *"update the LiteCraft plugin"*, then start a new session. Your se
 ## For developers
 
 - [CLAUDE.md](CLAUDE.md) — orientation and repo rules
-- [VISION.md](VISION.md) — goals, principles, risks
-- [IMPLEMENTATION.md](IMPLEMENTATION.md) — architecture, file formats, phased build plan
