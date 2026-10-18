@@ -10,6 +10,7 @@ Every command prints JSON on stdout; errors go to stderr with exit status 1.
   lc.py setup status | setup done STEP [--note TEXT] | setup skip STEP [--note TEXT] | setup reset STEP
   lc.py prefs show | prefs get KEY | prefs set KEY VALUE | prefs missing | prefs questions
   lc.py permissions show|sync|remove [--settings FILE]   LiteCraft's allow rules in Claude Code settings
+  lc.py trash SHOOT_NAME_OR_PATH        move a folder inside ~/LiteCraft to the macOS Bin (never erases)
   lc.py source PATH_OR_SHOOT_NAME [--job NAME]   photo count + whether to edit in place or copy first
   lc.py job new NAME --source DIR | job list | job show NAME
   lc.py job add-photos NAME --json '[{"lc_id":..,"file":..,"orientation":..}, ...]'
@@ -25,6 +26,7 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -374,6 +376,31 @@ def cmd_source(a):
     out(result)
 
 
+# ---------------------------------------------------------------- trash
+
+def cmd_trash(a):
+    """Move a shoot (or job) folder to the Bin. Only folders inside LITECRAFT_HOME; the guard hook asks the user first."""
+    p = paths()
+    target = os.path.expanduser(a.target)
+    if not os.path.isabs(target):
+        target = os.path.join(p["shoots"], target)
+    target = os.path.realpath(target)
+    allowed = [os.path.realpath(p["shoots"]), os.path.realpath(p["jobs"])]
+    if not any(target.startswith(root + os.sep) for root in allowed):
+        fail(f"{target} is not a shoot or job folder inside {p['home']} — LiteCraft only moves its own folders to the Bin")
+    if not os.path.isdir(target):
+        fail(f"no folder at {target}")
+    bin_dir = os.path.expanduser("~/.Trash")
+    dest = os.path.join(bin_dir, os.path.basename(target))
+    n = 1
+    while os.path.exists(dest):
+        n += 1
+        dest = os.path.join(bin_dir, f"{os.path.basename(target)} {n}")
+    shutil.move(target, dest)
+    out({"moved_to_bin": target, "bin_path": dest,
+         "restore": "Open the Bin in the Dock and drag the folder back, or ask Claude to put it back."})
+
+
 # ---------------------------------------------------------------- jobs
 
 def job_dir(name):
@@ -673,6 +700,10 @@ def main():
     pm.add_argument("action", choices=["show", "sync", "remove"])
     pm.add_argument("--settings")
     pm.set_defaults(fn=cmd_permissions)
+
+    tr = sub.add_parser("trash")
+    tr.add_argument("target")
+    tr.set_defaults(fn=cmd_trash)
 
     so = sub.add_parser("source")
     so.add_argument("path")
