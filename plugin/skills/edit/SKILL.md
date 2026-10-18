@@ -104,11 +104,17 @@ When the user says to export (or approves everything):
 
 ## Housekeeping
 
-When the user asks what they can delete or how to free space: `lc.py job list` and `du -sh` the `~/LiteCraft/Shoots/<name>` folders (and the job's `export/`) to show sizes. Explain that LightCraft needs a shoot's originals to re-export or change it, so they should only delete shoots that are delivered and backed up. Only delete anything after they name it and confirm; never delete originals that live outside `~/LiteCraft/Shoots`.
+When the user asks what they can delete or how to free space: `lc.py job list` and `du -sh` the `~/LiteCraft/Shoots/<name>` folders (and the job's `export/`) to show sizes. Explain that LightCraft needs a shoot's originals to re-export or change it, so they should only remove shoots that are delivered and backed up. When they name one: `lc.py trash NAME` — it moves the folder to the Bin (never erases), and Claude Code will show them a confirmation prompt first. Tell them it's in the Bin and can be dragged back. Never remove originals that live outside `~/LiteCraft/Shoots`; for those, tell them where the folder is so they can deal with it in Finder.
+
+## Moving or renaming photos
+
+Only when the user explicitly asks (e.g. "move the Smith Kitchen photos into my Archive folder", "rename them by date"). Do it through LightCraft so the photos stay linked to their edits: `run_command photo.moveToFolder {folder, ids}` or `photo.rename {template, ids}` — never `mv` in the shell or Finder-style moves. Before calling, say what will move and where; Claude Code will then ask them to confirm. If they decline, stop and don't try another way.
 
 ## Rules
 
-- Never modify, move or delete the user's original files. Copies into `~/LiteCraft/Shoots` are fine; moves never are.
+- Never modify, move or delete the user's original files on your own initiative. Copies into `~/LiteCraft/Shoots` are fine; moves, renames and removals only when the user asks (see above).
+- **The originals guard.** The plugin includes a hook that makes Claude Code ask the user before anything could move, rename, overwrite or delete originals (LightCraft moves/renames, move-mode imports, exporting with overwrite or into an originals folder, and shell or file writes in Shoots, job source folders or memory cards). If a call is blocked with "LiteCraft originals guard", don't work around it — explain in plain words what you were trying to do and let the user decide.
+- Exports always go to the job's `export/` folder (or `export.folder`), never with `conflict: "overwrite"`.
 - One photo at a time; never edit the photo the user says they're working on.
 - If a LightCraft call fails with "the outcome is unknown", check state with `get_develop` before retrying — never repeat blindly.
 - Keep chat updates short. The detail lives in captions and logs.
