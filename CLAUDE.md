@@ -24,7 +24,8 @@ If `IMPLEMENTATION.md` is present, work against its phases and tick items off as
 - **Atomic commits.** One logical change per commit, pushed as you go. End messages with the attribution line from the session.
 - **No client photos in git.** `Samples/` and `vendor/` are gitignored; keep it that way.
 - **Connect mode only.** The plugin's MCP server always uses `lightcraft-cli mcp --connect`. Never configure a headless `--library` server in the plugin — it would hold the library lock for the whole session and block the desktop app.
-- **Stdlib-only Python** in `plugin/scripts/` — the user's Mac has no pip packages.
+- **Stdlib-only Python** in `plugin/scripts/` and `plugin/hooks/` — the user's Mac has no pip packages.
+- **Keep the originals guard** (`plugin/hooks/guard.py`). Any new LightCraft command or script that can move, rename, overwrite or delete files must be added to it; run `python3 dev/test_guard.py` after changing it.
 - **User data lives in `~/LiteCraft`** (override with `LITECRAFT_HOME` for testing); the LightCraft library is at LightCraft's default, `~/Pictures/LightCraft Library`. Never write user state into the plugin directory.
 - **Skills call scripts unquoted at their full `${CLAUDE_PLUGIN_ROOT}` path** so they match the allow rules `lc.py permissions sync` writes.
 - Mark unverified LightCraft behaviour **(verify)** in docs until tested.
