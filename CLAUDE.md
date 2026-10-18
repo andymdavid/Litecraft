@@ -28,6 +28,7 @@ If `IMPLEMENTATION.md` is present, work against its phases and tick items off as
 - **Keep the originals guard** (`plugin/hooks/guard.py`). Any new LightCraft command or script that can move, rename, overwrite or delete files must be added to it; run `python3 dev/test_guard.py` after changing it.
 - **User data lives in `~/LiteCraft`** (override with `LITECRAFT_HOME` for testing); the LightCraft library is at LightCraft's default, `~/Pictures/LightCraft Library`. Never write user state into the plugin directory.
 - **Skills call scripts unquoted at their full `${CLAUDE_PLUGIN_ROOT}` path** so they match the allow rules `lc.py permissions sync` writes.
+- **Bump the version** in `plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (keep them equal) whenever plugin files change — Claude Code only offers updates when the version changes.
 - Mark unverified LightCraft behaviour **(verify)** in docs until tested.
 
 ## Dev setup
