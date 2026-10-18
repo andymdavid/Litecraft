@@ -270,6 +270,11 @@ def cmd_prefs(a):
 # ---------------------------------------------------------------- Claude Code permissions
 
 MCP_RULE = "mcp__plugin_litecraft_lightcraft__*"
+HOME_READ_RULE = "Read(~/LiteCraft/**)"
+# lc.py subcommands that run without a prompt. Not here (they always ask): env init,
+# permissions sync/remove and trash — they change what runs, what's allowed, or remove folders.
+LC_ALLOWED = ["paths", "setup *", "prefs *", "source *", "job *", "log *", "crop *", "stats *",
+              "compare *", "env show", "env check", "permissions show"]
 
 
 def permission_rules():
@@ -278,22 +283,32 @@ def permission_rules():
     The plugin path contains its version, so rules are rewritten after an update (sync) rather
     than using a wildcard in the program position, which would match more than intended.
     """
-    return [
-        MCP_RULE,
-        f"Bash({os.path.join(PLUGIN_ROOT, 'scripts', 'lc.py')} *)",
-        f"Bash({os.path.join(PLUGIN_ROOT, 'bin', 'litecraft-app')} *)",
-        "Read(~/LiteCraft/**)",
-    ]
+    lc = os.path.join(PLUGIN_ROOT, "scripts", "lc.py")
+    return ([MCP_RULE]
+            + [f"Bash({lc} {sub})" for sub in LC_ALLOWED]
+            + [f"Bash({os.path.join(PLUGIN_ROOT, 'bin', 'litecraft-app')} *)",
+               HOME_READ_RULE,
+               f"Read(/{PLUGIN_ROOT}/**)"])
 
 
 def is_litecraft_rule(rule):
-    return (rule in (MCP_RULE, "Read(~/LiteCraft/**)")
-            or (rule.startswith("Bash(") and rule.endswith(("/scripts/lc.py *)", "/bin/litecraft-app *)"))))
+    if rule in permission_rules() or rule in (MCP_RULE, HOME_READ_RULE):
+        return True
+    if rule.startswith("Bash(") and ("/scripts/lc.py " in rule or rule.endswith("/bin/litecraft-app *)")):
+        return True
+    return rule.startswith("Read(//") and "/plugins/cache/litecraft/" in rule
 
 
 def cmd_permissions(a):
-    path = os.path.expanduser(a.settings or "~/.claude/settings.json")
-    settings = read_json(path, {})
+    # Write through a symlinked settings file (dotfile managers) rather than replacing the link.
+    path = os.path.realpath(os.path.expanduser(a.settings or "~/.claude/settings.json"))
+    try:
+        settings = read_json(path, {})
+    except ValueError as e:
+        fail(f"{path} isn't valid JSON ({e}); not changing it")
+    if not isinstance(settings, dict) or not isinstance(settings.get("permissions", {}), dict) \
+            or not isinstance(settings.get("permissions", {}).get("allow", []), list):
+        fail(f"{path} has an unexpected shape; not changing it")
     allow = settings.get("permissions", {}).get("allow", [])
     wanted = permission_rules()
     current = [r for r in allow if is_litecraft_rule(r)]
